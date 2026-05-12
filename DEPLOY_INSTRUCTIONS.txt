@@ -1,0 +1,94 @@
+# JVI Golf — Deployment Instructions
+# How to get this on everyone's phone in ~5 minutes
+
+## What you'll end up with
+A link like https://jvi-golf.vercel.app that anyone can open and add to
+their home screen like a real app — no App Store required.
+
+---
+
+## STEP 1 — Install Node.js (one-time, 2 minutes)
+If you've never done this before:
+1. Go to https://nodejs.org
+2. Click the big green "LTS" download button
+3. Run the installer — just click Next through everything
+4. Restart your computer when it's done
+
+---
+
+## STEP 2 — Create a free GitHub account (one-time)
+1. Go to https://github.com
+2. Click "Sign up" — use any email
+3. Verify your email address
+
+---
+
+## STEP 3 — Upload your project to GitHub
+1. Go to https://github.com/new
+2. Repository name: jvi-golf
+3. Keep it Public (required for free Vercel)
+4. Click "Create repository"
+5. On the next page, click "uploading an existing file"
+6. Drag and drop the entire "jvi-golf" folder's CONTENTS
+   (package.json, vite.config.js, index.html, src folder, public folder)
+7. Click "Commit changes"
+
+---
+
+## STEP 4 — Deploy on Vercel (2 minutes)
+1. Go to https://vercel.com
+2. Click "Sign Up" → choose "Continue with GitHub"
+3. Authorize Vercel to access your GitHub
+4. Click "Add New Project"
+5. Find "jvi-golf" in the list → click "Import"
+6. Vercel auto-detects it as a Vite project — don't change anything
+7. Click "Deploy"
+8. Wait about 60 seconds...
+9. You'll see "Congratulations!" and your live URL
+
+---
+
+## STEP 5 — Share the link
+Send the URL (e.g. https://jvi-golf.vercel.app) to everyone in your group.
+
+---
+
+## How players install it on their phone
+
+### iPhone (Safari only — must use Safari, not Chrome):
+1. Open the link in Safari
+2. Tap the Share button (box with arrow pointing up)
+3. Scroll down and tap "Add to Home Screen"
+4. Tap "Add"
+5. The JVI Golf icon appears on their home screen
+
+### Android (Chrome):
+1. Open the link in Chrome
+2. Tap the three-dot menu (top right)
+3. Tap "Add to Home screen"
+4. Tap "Add"
+5. The JVI Golf icon appears on their home screen
+
+---
+
+## Updating the app later
+If you ever want to make changes (new teams, tweak anything):
+1. Make the change in Claude
+2. Download the new App.jsx file
+3. Go to your GitHub repo → src/App.jsx → click the pencil icon
+4. Paste the new code → click "Commit changes"
+5. Vercel automatically redeploys in about 60 seconds
+6. Everyone gets the update next time they open the app
+
+---
+
+## Your data is safe
+All scores and teams are saved in localStorage on each device.
+The admin enters teams before the outing — those stay saved until Reset is hit.
+
+---
+
+## Need a custom URL?
+Vercel lets you set a custom domain for free if you own one,
+or you can pay ~$10/year for a domain like jvigolf.com at Namecheap or GoDaddy
+and connect it to Vercel in about 5 minutes.
