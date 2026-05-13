@@ -232,30 +232,53 @@ const css = `
 
 // Shared cloud storage so all devices see the same data
 // ── Firebase Realtime Database ───────────────────────────────────────────────
-const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com";
+// We store ALL data as a single object at /jvi_data.json to avoid array mangling.
+// Firebase mangles JS arrays into {0:..., 1:...} objects. By using one top-level
+// object we control exactly what gets stored and retrieved.
+const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
 
-async function fbGet(key) {
+// In-memory store — single source of truth during the session
+let _store = { teams: [], scores: {}, notes: {}, messages: {} };
+let _loaded = false;
+const _listeners = {};
+
+async function loadFromFirebase() {
   try {
-    const r = await fetch(`${FB_URL}/${key}.json`);
-    if (!r.ok) { console.error("fbGet failed:", key, r.status); return undefined; }
-    const data = await r.json(); // returns null if key doesn't exist in Firebase
-    return data;
-  } catch(e) { console.error("fbGet error:", key, e); return undefined; }
+    const r = await fetch(`${FB_URL}.json`);
+    if (!r.ok) { console.error("Firebase load failed:", r.status); return; }
+    const data = await r.json();
+    if (data) {
+      _store = {
+        teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
+        scores:   data.scores   || {},
+        notes:    data.notes    || {},
+        messages: data.messages || {},
+      };
+    }
+    console.log("✓ Loaded from Firebase", _store);
+  } catch(e) { console.error("Firebase load error:", e); }
+  _loaded = true;
+  // Notify all listeners
+  Object.values(_listeners).forEach(fn => fn());
 }
 
-async function fbSet(key, value) {
+async function saveToFirebase() {
   try {
-    const r = await fetch(`${FB_URL}/${key}.json`, {
+    const r = await fetch(`${FB_URL}.json`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(value)
+      body: JSON.stringify(_store)
     });
-    if (!r.ok) console.error("fbSet failed:", key, r.status);
-    else console.log("✓ Firebase write:", key);
-  } catch(e) { console.error("fbSet error:", key, e); }
+    if (!r.ok) console.error("Firebase save failed:", r.status);
+    else console.log("✓ Firebase saved");
+  } catch(e) { console.error("Firebase save error:", e); }
 }
 
-// Simple localStorage hook for local-only state
+// Load on startup and poll every 6s
+loadFromFirebase();
+setInterval(() => { if (_loaded) loadFromFirebase(); }, 6000);
+
+// Simple localStorage hook for local-only UI state
 function useStorage(key, init) {
   const [state, setState] = useState(() => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : init(); }
@@ -267,58 +290,26 @@ function useStorage(key, init) {
   return [state, setState];
 }
 
-// ── Shared storage hook — Firebase is the ONLY source of truth ───────────────
-// Strategy:
-//   1. Start with empty/default state
-//   2. Load from Firebase on mount — update state when done
-//   3. Expose a setter that writes to BOTH local state AND Firebase
-//   4. Poll Firebase every 6s for changes from other devices
+// Shared hook — reads/writes from the single _store object
 function useSharedStorage(key, defaultValue) {
-  const [state, setState] = useState(defaultValue);
-  const canWrite = React.useRef(false);  // prevents writes before Firebase loads
-  const lastWriteTime = React.useRef(0);
+  const [state, setState] = useState(() => _store[key] || defaultValue);
+  const listenerId = React.useRef(`${key}_${Math.random()}`);
 
-  // Step 1: Load from Firebase on mount
   useEffect(() => {
-    console.log("Loading from Firebase:", key);
-    fbGet(key).then(result => {
-      if (result !== undefined && result !== null) {
-        // Normalize: if key is a list (teams/messages/etc) ensure it's an array
-        const normalized = Array.isArray(result) ? result : (typeof result === "object" ? Object.values(result) : result);
-        console.log("Loaded from Firebase:", key, normalized);
-        setState(normalized);
-      } else {
-        console.log("Firebase empty for key:", key, "— using default");
-      }
-      canWrite.current = true;
-    });
+    // Register listener so we update when Firebase data loads/refreshes
+    _listeners[listenerId.current] = () => {
+      setState(_store[key] || defaultValue);
+    };
+    // If already loaded, sync immediately
+    if (_loaded) setState(_store[key] || defaultValue);
+    return () => { delete _listeners[listenerId.current]; };
   }, [key]);
 
-  // Step 2: Poll every 6s for updates from other devices
-  useEffect(() => {
-    const id = setInterval(() => {
-      // Don't poll if we wrote very recently (our own write is still fresh)
-      if (Date.now() - lastWriteTime.current < 5000) return;
-      fbGet(key).then(result => {
-        if (result !== undefined && result !== null) {
-          const normalized = Array.isArray(result) ? result : (typeof result === "object" ? Object.values(result) : result);
-          setState(normalized);
-        }
-      });
-    }, 6000);
-    return () => clearInterval(id);
-  }, [key]);
-
-  // Step 3: Setter that writes to Firebase
   const set = React.useCallback((updater) => {
     setState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      if (canWrite.current) {
-        lastWriteTime.current = Date.now();
-        fbSet(key, next);
-      } else {
-        console.warn("Write blocked — Firebase not ready yet for:", key);
-      }
+      _store[key] = next;
+      saveToFirebase();
       return next;
     });
   }, [key]);
@@ -1265,8 +1256,10 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
   const [text, setText] = React.useState("");
   const [refreshing, setRefreshing] = React.useState(false);
   const bottomRef = React.useRef(null);
-  // Firebase can return an object with numeric keys instead of array — normalize it
-  const msgList = Array.isArray(messages) ? messages : (messages && typeof messages === "object" ? Object.values(messages) : []);
+  // Messages stored as {id: msg} object
+  const msgList = messages && typeof messages === "object" && !Array.isArray(messages)
+    ? Object.values(messages).sort((a, b) => (a.ts || 0) - (b.ts || 0))
+    : Array.isArray(messages) ? [...messages].sort((a, b) => (a.ts||0)-(b.ts||0)) : [];
 
   // Pull fresh messages from Firebase whenever the board is opened
   React.useEffect(() => {
@@ -1286,10 +1279,14 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
   const send = () => {
     const t = text.trim();
     if (!t) return;
-    const msg = { id: Date.now(), author: currentUser?.name || "Guest", text: t, ts: Date.now() };
+    const id = Date.now();
+    const msg = { id, author: currentUser?.name || "Guest", text: t, ts: id };
+    console.log("Sending message:", msg);
     setMessages(prev => {
-      const arr = Array.isArray(prev) ? prev : (prev && typeof prev === "object" ? Object.values(prev) : []);
-      return [...arr, msg];
+      const obj = (prev && typeof prev === "object" && !Array.isArray(prev)) ? prev : {};
+      const next = { ...obj, [id]: msg };
+      console.log("New messages state:", next);
+      return next;
     });
     setText("");
   };
