@@ -233,50 +233,59 @@ const css = `
 // Shared cloud storage so all devices see the same data
 // ── Firebase Realtime Database ───────────────────────────────────────────────
 const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
+const LS_KEY  = "jvi_local_store"; // localStorage backup
 
-let _store = { teams: [], scores: {}, notes: {}, messages: {} };
+// Load persisted local store first (instant, survives refresh)
+function loadLocalStore() {
+  try {
+    const v = localStorage.getItem(LS_KEY);
+    return v ? JSON.parse(v) : null;
+  } catch(e) { return null; }
+}
+
+function saveLocalStore(store) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch(e) {}
+}
+
+const _local = loadLocalStore();
+let _store = _local || { teams: [], scores: {}, notes: {}, messages: {} };
 let _loaded = false;
-let _pendingSave = null;   // debounce timer
-let _localVersion = 0;     // increments on every local write
-let _remoteVersion = 0;    // version we loaded from Firebase
 const _listeners = {};
 
 function notifyListeners() {
   Object.values(_listeners).forEach(fn => { try { fn(); } catch(e) {} });
 }
 
-// Load from Firebase — only update state if no local writes happened since
+// Load from Firebase ONCE on mount — merge with local, remote wins
 async function loadFromFirebase(isInitial = false) {
-  const versionAtLoad = _localVersion;
   try {
     const r = await fetch(`${FB_URL}.json`);
-    if (!r.ok) { console.error("Firebase load failed:", r.status); return; }
+    if (!r.ok) { console.error("Firebase load failed:", r.status); _loaded = true; notifyListeners(); return; }
     const data = await r.json();
-    // If a local write happened while we were fetching, discard the remote data
-    if (_localVersion !== versionAtLoad && !isInitial) {
-      console.log("Discarding stale remote data — local write happened during fetch");
-      return;
-    }
     if (data) {
-      _store = {
-        teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
-        scores:   data.scores   || {},
-        notes:    data.notes    || {},
-        messages: data.messages || {},
-      };
-      _remoteVersion = _localVersion;
-      console.log("✓ Loaded from Firebase");
+      // Remote wins on initial load; after that local wins
+      if (isInitial) {
+        _store = {
+          teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
+          scores:   data.scores   || {},
+          notes:    data.notes    || {},
+          messages: data.messages || {},
+        };
+        saveLocalStore(_store);
+        console.log("✓ Loaded from Firebase (initial)");
+      }
     }
-  } catch(e) { console.error("Firebase load error:", e); return; }
-  if (!_loaded) { _loaded = true; }
+  } catch(e) { console.error("Firebase load error:", e); }
+  _loaded = true;
   notifyListeners();
 }
 
-// Save to Firebase — debounced so rapid writes don't spam
+// Save to Firebase and localStorage together
+let _saveTimer = null;
 function saveToFirebase() {
-  _localVersion++;
-  if (_pendingSave) clearTimeout(_pendingSave);
-  _pendingSave = setTimeout(async () => {
+  saveLocalStore(_store); // save locally immediately so data is never lost
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(async () => {
     try {
       const r = await fetch(`${FB_URL}.json`, {
         method: "PUT",
@@ -284,9 +293,9 @@ function saveToFirebase() {
         body: JSON.stringify(_store)
       });
       if (!r.ok) console.error("Firebase save failed:", r.status);
-      else console.log("✓ Firebase saved, version:", _localVersion);
+      else console.log("✓ Firebase saved");
     } catch(e) { console.error("Firebase save error:", e); }
-  }, 300);  // wait 300ms after last change before writing
+  }, 500);
 }
 
 // loadFromFirebase() is called inside the JVI component on mount
@@ -360,11 +369,9 @@ export default function JVI() {
 
   const HOLES = COURSE.holes;
 
-  // Load Firebase data on mount and poll every 6s
+  // Load Firebase data once on mount
   useEffect(() => {
     loadFromFirebase(true);
-    const id = setInterval(() => { if (_loaded) loadFromFirebase(false); }, 8000);
-    return () => clearInterval(id);
   }, []);
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2600); };
