@@ -539,7 +539,7 @@ export default function JVI() {
       {view === "admin" && (
         <div style={{ marginTop: 20 }}>
           <div className="tab-bar" style={{ paddingLeft: 4, paddingRight: 4 }}>
-            {["teams","scoring","leaderboard","skins","messages"].map(tab => (
+            {["teams","scoring","leaderboard","skins","competitions","messages"].map(tab => (
               <button key={tab} className={`tab-btn${adminTab === tab ? " active" : ""}`} onClick={() => setAdminTab(tab)}>
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -565,6 +565,7 @@ export default function JVI() {
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins"       && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
             {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
+            {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
           </div>
         </div>
       )}
@@ -573,7 +574,7 @@ export default function JVI() {
       {view === "viewer" && (
         <div style={{ marginTop: 20 }}>
           <div className="tab-bar" style={{ paddingLeft: 4 }}>
-            {["leaderboard","skins","messages"].map(tab => (
+            {["leaderboard","skins","competitions","messages"].map(tab => (
               <button key={tab} className={`tab-btn${adminTab === tab ? " active" : ""}`} onClick={() => setAdminTab(tab)}>
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -669,7 +670,7 @@ export default function JVI() {
 
           <div style={{ marginTop: 8 }}>
             <div className="tab-bar" style={{ borderRadius: "12px 12px 0 0", overflow: "hidden" }}>
-              {["leaderboard","skins","messages"].map(tab => (
+              {["leaderboard","skins","competitions","messages"].map(tab => (
                 <button key={tab} className={"tab-btn" + (adminTab === tab || (adminTab !== "skins" && adminTab !== "messages" && tab === "leaderboard") ? " active" : "")} onClick={() => setAdminTab(tab)}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -679,6 +680,7 @@ export default function JVI() {
               {(adminTab !== "skins" && adminTab !== "messages") && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
               {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
               {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
+              {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
             </div>
           </div>
         </div>
@@ -896,31 +898,25 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
                   const wonSkin = skin && !skin.tie && skin.team && skin.team.id === team.id;
                   const diff = s ? s - h.par : null;
                   if (!s) return <td><span style={{ color: "rgba(60,60,67,0.2)" }}>—</span></td>;
-                  // Skin overrides everything — gold highlight
-                  if (wonSkin) return <td style={{ padding: "4px 3px" }}><span className="skin-winner">{s}</span></td>;
-                  let style = { display:"inline-flex", alignItems:"center", justifyContent:"center",
-                    width:26, height:26, fontWeight:600, fontSize:12, color:"#000",
-                    fontFamily:T.font };
-                  if (diff <= -3) {
-                    // Triple eagle / albatross: double circle
-                    style = { ...style, borderRadius:"50%", border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
-                  } else if (diff === -2) {
-                    // Eagle: double circle
-                    style = { ...style, borderRadius:"50%", border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
-                  } else if (diff === -1) {
-                    // Birdie: single circle
-                    style = { ...style, borderRadius:"50%", border:"1.5px solid #000" };
-                  } else if (diff === 1) {
-                    // Bogey: single square
-                    style = { ...style, borderRadius:2, border:"1.5px solid #000" };
-                  } else if (diff === 2) {
-                    // Double bogey: double square
-                    style = { ...style, borderRadius:2, border:"1.5px solid #000", outline:"1.5px solid #000", outlineOffset:"2px" };
-                  } else if (diff >= 3) {
-                    // Triple+: double square
-                    style = { ...style, borderRadius:2, border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
+                  // Build score symbol style based on diff
+                  let symStyle = { display:"inline-flex", alignItems:"center", justifyContent:"center",
+                    width:24, height:24, fontWeight:700, fontSize:12, color:"#000", fontFamily:T.font };
+                  if (diff <= -2) symStyle = { ...symStyle, borderRadius:"50%", border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
+                  else if (diff === -1) symStyle = { ...symStyle, borderRadius:"50%", border:"1.5px solid #000" };
+                  else if (diff === 1) symStyle = { ...symStyle, borderRadius:2, border:"1.5px solid #000" };
+                  else if (diff === 2) symStyle = { ...symStyle, borderRadius:2, border:"1.5px solid #000", outline:"1.5px solid #000", outlineOffset:"2px" };
+                  else if (diff >= 3) symStyle = { ...symStyle, borderRadius:2, border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
+                  // If skin winner — wrap in gold background, keep score symbol
+                  if (wonSkin) {
+                    return (
+                      <td style={{ padding: "2px 3px" }}>
+                        <div style={{ background:"linear-gradient(135deg,#FFD700,#FFA500)", borderRadius:7, padding:"2px 3px", display:"inline-flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 3px rgba(255,165,0,0.4)" }}>
+                          <span style={{ ...symStyle, color:"#5C3A00", border: symStyle.border ? symStyle.border.replace("#000","#5C3A00") : undefined, outline: symStyle.outline ? symStyle.outline.replace("#000","#5C3A00") : undefined }}>{s}</span>
+                        </div>
+                      </td>
+                    );
                   }
-                  return <td style={{ padding: "4px 3px" }}><span style={style}>{s}</span></td>;
+                  return <td style={{ padding: "4px 3px" }}><span style={symStyle}>{s}</span></td>;
                 };
                 return (
                   <React.Fragment key={team.id}>
@@ -1193,6 +1189,58 @@ function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginErro
         style={{ opacity: userType ? 1 : 0.4 }}>
         {userType === "player" ? "View Outing" : userType === "captain" ? "Sign In as Captain" : userType === "admin" ? "Sign In as Admin" : "Continue"}
       </button>
+    </div>
+  );
+}
+
+// ── Competitions View ─────────────────────────────────────────────────────────
+// Shows all hole notes grouped by hole so users can track special competitions
+function CompetitionsView({ teams, notes, HOLES }) {
+  // Collect all holes that have at least one note from any team
+  const holesWithNotes = HOLES.filter(h =>
+    teams.some(t => notes[`${t.id}_${h.hole}`])
+  );
+
+  return (
+    <div>
+      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "#fff", marginBottom: 4 }}>Competitions</div>
+      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 20 }}>
+        Special hole competitions — closest to pin, longest drive, and more.
+      </div>
+
+      {holesWithNotes.length === 0 && (
+        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.6)", fontFamily: T.font, fontSize: 15, padding: "40px 0" }}>
+          No competition notes yet. Captains can add notes when entering scores.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: 14 }}>
+        {holesWithNotes.map(h => (
+          <div key={h.hole} style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+            {/* Hole header */}
+            <div style={{ background: T.green, padding: "10px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.font, fontSize: 16, fontWeight: 800, color: "#fff" }}>
+                {h.hole}
+              </div>
+              <div>
+                <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#fff" }}>Hole {h.hole}</div>
+                <div style={{ fontFamily: T.font, fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
+              </div>
+            </div>
+            {/* Notes per team */}
+            {teams.filter(t => notes[`${t.id}_${h.hole}`]).map((team, i, arr) => (
+              <div key={team.id} style={{ padding: "12px 18px", borderBottom: i < arr.length - 1 ? `1px solid ${T.sep}` : "none" }}>
+                <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {team.name}
+                </div>
+                <div style={{ fontFamily: T.font, fontSize: 15, color: "#000" }}>
+                  {notes[`${team.id}_${h.hole}`]}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
