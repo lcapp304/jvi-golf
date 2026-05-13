@@ -272,38 +272,34 @@ function useStorage(key, init) {
 }
 
 // Shared hook — Firebase is the single source of truth
-// On mount: load from Firebase (ignore localStorage)
-// On change: write to Firebase immediately
-// Poll every 5s: pull latest from Firebase
 function useSharedStorage(key, init) {
   const [state, setState] = useState(init);
-  const [ready, setReady] = useState(false);
+  const initialized = React.useRef(false); // true once Firebase data is loaded
   const lastWrite = React.useRef(0);
 
-  // On mount — always load from Firebase first, ignore localStorage
+  // On mount — load from Firebase, mark initialized
   useEffect(() => {
     fbGet(key).then(v => {
-      if (v !== null) {
-        setState(v);
-      }
-      setReady(true);
-    }).catch(() => setReady(true));
+      setState(v !== null ? v : init());
+      initialized.current = true;
+    }).catch(() => { initialized.current = true; });
   }, []);
 
-  // Poll Firebase every 5 seconds
+  // Poll Firebase every 5 seconds — only update if we haven't written recently
   useEffect(() => {
-    if (!ready) return;
     const interval = setInterval(() => {
-      if (Date.now() - lastWrite.current < 3000) return;
+      if (!initialized.current) return;
+      if (Date.now() - lastWrite.current < 4000) return;
       fbGet(key).then(v => {
         if (v !== null) setState(v);
       }).catch(() => {});
     }, 5000);
     return () => clearInterval(interval);
-  }, [ready]);
+  }, []);
 
-  // Setter — writes to Firebase immediately
+  // Setter — only writes to Firebase AFTER initialization to prevent overwriting with empty state
   const setStateAndSync = React.useCallback((updater) => {
+    if (!initialized.current) return; // guard: ignore calls before Firebase loads
     setState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       lastWrite.current = Date.now();
@@ -655,7 +651,17 @@ export default function JVI() {
                   <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2}
                     onChange={e => setNoteInput(prev => ({ ...prev, [key]: e.target.value }))}
                     placeholder="Closest to pin, longest drive, etc."
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none", resize: "vertical" }} />
+                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none", resize: "vertical", marginBottom: 10 }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <button className="btn-sm" onClick={() => {
+                      const note = noteInput[key] !== undefined ? noteInput[key] : savedNote;
+                      setNotes(prev => ({ ...prev, [key]: note }));
+                      showToast("Note saved!");
+                    }}>Save note</button>
+                    {savedNote && noteInput[key] === undefined && (
+                      <span style={{ fontFamily: T.font, fontSize: 13, color: T.greenAccent }}>✓ Note saved</span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -989,31 +995,30 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
       {/* ── Top section: team skin counts, expandable ── */}
       {Object.values(counts).length > 0 && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>Teams</div>
-          <div style={{ display: "grid", gap: 8 }}>
-            {Object.values(counts).sort((a,b) => b.count - a.count).map(({ team, count }) => {
+          <div style={{ display: "grid", gridTemplateColumns: "60px 1fr", background: T.green, borderRadius: "10px 10px 0 0", padding: "8px 18px", marginBottom: 0 }}>
+            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)" }}>Skins</div>
+            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)" }}>Team</div>
+          </div>
+          <div style={{ display: "grid", gap: 0, borderRadius: "0 0 14px 14px", overflow: "hidden" }}>
+            {Object.values(counts).sort((a,b) => b.count - a.count).map(({ team, count }, idx, arr) => {
               const isOpen = expandedTeam === team.id;
               return (
-                <div key={team.id}>
+                <div key={team.id} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${T.sep}` : "none" }}>
                   <div className="glass" onClick={() => setExpandedTeam(isOpen ? null : team.id)}
-                    style={{ borderRadius: isOpen ? "14px 14px 0 0" : 14, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      {count > 0 && (
-                        <div style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)", borderRadius: 10, padding: "4px 12px", fontFamily: T.font, fontSize: 15, fontWeight: 800, color: "#5C3A00" }}>
-                          {count} skin{count !== 1 ? "s" : ""}
-                        </div>
-                      )}
-                      <div style={{ fontFamily: T.font, fontSize: 16, fontWeight: 700, color: "#000" }}>{team.name}</div>
+                    style={{ borderRadius: 0, padding: "14px 18px", display: "grid", gridTemplateColumns: "60px 1fr auto", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <div style={{ fontFamily: T.font, fontSize: 14, fontWeight: 800, color: count > 0 ? "#5C3A00" : T.label, background: count > 0 ? "linear-gradient(135deg,#FFD700,#FFA500)" : "transparent", borderRadius: 8, padding: count > 0 ? "3px 10px" : "0", display: "inline-block" }}>
+                      {count > 0 ? `${count}` : "—"}
                     </div>
+                    <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#000" }}>{team.name}</div>
                     <span style={{ color: T.label, fontSize: 11, fontFamily: T.font }}>{isOpen ? "▲" : "▼"}</span>
                   </div>
                   {isOpen && (
-                    <div style={{ background: "rgba(52,199,89,0.06)", border: "1px solid rgba(255,255,255,0.5)", borderTop: "none", borderRadius: "0 0 14px 14px", padding: "12px 18px" }}>
-                      <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: T.green, marginBottom: 8 }}>Roster</div>
+                    <div style={{ background: "#EAF5EF", border: "none", borderTop: "1px solid rgba(28,61,42,0.1)", padding: "12px 18px" }}>
+                      <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: T.green, marginBottom: 8 }}>Roster</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px" }}>
                         {team.players.map((p, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 14, color: "#000" }}>
-                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === 0 ? T.greenAccent : "rgba(118,118,128,0.3)", flexShrink: 0 }} />
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 14, color: "#1C3D2A" }}>
+                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === 0 ? T.greenAccent : "rgba(28,61,42,0.3)", flexShrink: 0 }} />
                             {p}{i === 0 && <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}> · captain</span>}
                           </div>
                         ))}
