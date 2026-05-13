@@ -231,42 +231,95 @@ const css = `
 `;
 
 // Shared cloud storage so all devices see the same data
-async function cloudGet(key) {
+// ── Firebase Realtime Database — cross-device shared storage ─────────────────
+// Free tier: 1GB storage, 10GB/month transfer — more than enough for a golf outing.
+// Data URL is public but the database rules only allow read/write (no delete without auth).
+const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com";
+
+async function fbGet(key) {
   try {
-    const res = await window.storage.get(key, true);
-    return res ? JSON.parse(res.value) : null;
+    const r = await fetch(`${FB_URL}/${key}.json`);
+    if (!r.ok) return null;
+    return await r.json();
   } catch { return null; }
 }
-async function cloudSet(key, value) {
-  try { await window.storage.set(key, JSON.stringify(value), true); } catch {}
+
+async function fbSet(key, value) {
+  try {
+    await fetch(`${FB_URL}/${key}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(value)
+    });
+  } catch {}
 }
 
+// Simple localStorage fallback hook (used for non-shared state)
 function useStorage(key, init) {
-  const [state, setState] = useState(init);
-  const [loaded, setLoaded] = useState(false);
-
-  // Load from cloud on mount
+  const [state, setState] = useState(() => {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : init(); }
+    catch { return init(); }
+  });
   useEffect(() => {
-    cloudGet(key).then(v => {
-      if (v !== null) setState(v);
-      setLoaded(true);
-    });
-  }, [key]);
-
-  // Save to cloud on change (after initial load)
-  useEffect(() => {
-    if (!loaded) return;
-    cloudSet(key, state);
-  }, [state, key, loaded]);
-
+    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+  }, [state, key]);
   return [state, setState];
 }
 
+// Shared hook — reads from Firebase on mount, polls every 8s, writes on change
+function useSharedStorage(key, init) {
+  const [state, setState] = useState(() => {
+    try { const v = localStorage.getItem("fb_" + key); return v ? JSON.parse(v) : init(); }
+    catch { return init(); }
+  });
+  const [loaded, setLoaded] = useState(false);
+  const lastWrite = React.useRef(0);
+
+  // Load from Firebase on mount
+  useEffect(() => {
+    fbGet(key).then(v => {
+      if (v !== null) {
+        setState(v);
+        try { localStorage.setItem("fb_" + key, JSON.stringify(v)); } catch {}
+      }
+      setLoaded(true);
+    });
+  }, []);
+
+  // Poll Firebase every 8 seconds for updates from other devices
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Skip polling if we just wrote (within 3s) to avoid overwriting ourselves
+      if (Date.now() - lastWrite.current < 3000) return;
+      fbGet(key).then(v => {
+        if (v !== null) {
+          setState(v);
+          try { localStorage.setItem("fb_" + key, JSON.stringify(v)); } catch {}
+        }
+      });
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Write to Firebase when state changes (after initial load)
+  const setStateAndSync = React.useCallback((updater) => {
+    setState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      lastWrite.current = Date.now();
+      try { localStorage.setItem("fb_" + key, JSON.stringify(next)); } catch {}
+      fbSet(key, next);
+      return next;
+    });
+  }, [key]);
+
+  return [state, setStateAndSync];
+}
+
 export default function JVI() {
-  const [teams,  setTeams]  = useStorage("jvi_teams",  initTeams);
-  const [scores, setScores] = useStorage("jvi_scores", initScores);
-  const [notes,    setNotes]    = useStorage("jvi_notes",    initScores);
-  const [messages, setMessages] = useStorage("jvi_messages", initMessages);
+  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  initTeams);
+  const [scores, setScores] = useSharedStorage("jvi_scores", initScores);
+  const [notes,    setNotes]    = useSharedStorage("jvi_notes",    initScores);
+  const [messages, setMessages] = useSharedStorage("jvi_messages", initMessages);
 
   const [view,         setView]         = useState("login");
   const [currentUser,  setCurrentUser]  = useState(null);
@@ -620,12 +673,7 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
               <input value={p} onChange={e => setEditTeam(prev => { const pl=[...prev.players]; pl[i]=e.target.value; return {...prev,players:pl}; })}
                 placeholder={i === 0 ? "Captain (score entry)" : `Player ${i + 1} (optional)`} style={inp} />
-              {p.trim() && i > 0 && (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13, color: T.label, cursor: "pointer", whiteSpace: "nowrap" }}>
-                  <input type="radio" name="edit-scorer" checked={editTeam.scorerIndex === i} onChange={() => setEditTeam(prev => ({...prev, scorerIndex: i}))} style={{ accentColor: T.green }} />
-                  Captain
-                </label>
-              )}
+
             </div>
           ))}
           <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
@@ -642,12 +690,7 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <input value={p} onChange={e => setNewPlayers(prev => { const np=[...prev]; np[i]=e.target.value; return np; })}
               placeholder={i === 0 ? "Captain (score entry)" : `Player ${i + 1} (optional)`} style={inp} />
-            {p.trim() && i > 0 && (
-              <label style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13, color: T.label, cursor: "pointer", whiteSpace: "nowrap" }}>
-                <input type="radio" name="new-scorer" checked={newScorer === i} onChange={() => setNewScorer(i)} style={{ accentColor: T.green }} />
-                Captain
-              </label>
-            )}
+
           </div>
         ))}
         <button className="btn-sm" style={{ marginTop: 6 }} onClick={addTeam}>Add team</button>
@@ -757,7 +800,7 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
   const [expanded, setExpanded] = useState(null);
   return (
     <div>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4 }}>Leaderboard</div>
+      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4, color: "#FFD700" }}>Leaderboard</div>
       <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 16 }}>Tap any row to expand</div>
       {teams.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet.</div>}
       <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
