@@ -232,17 +232,24 @@ const css = `
 
 // Shared cloud storage so all devices see the same data
 // ── Firebase Realtime Database ───────────────────────────────────────────────
-// We store ALL data as a single object at /jvi_data.json to avoid array mangling.
-// Firebase mangles JS arrays into {0:..., 1:...} objects. By using one top-level
-// object we control exactly what gets stored and retrieved.
 const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
 
-// In-memory store — single source of truth during the session
 let _store = { teams: [], scores: {}, notes: {}, messages: {} };
 let _loaded = false;
+let _lastWriteTime = 0;        // timestamp of last local write
+let _isSaving = false;         // prevent concurrent saves
 const _listeners = {};
 
+function notifyListeners() {
+  Object.values(_listeners).forEach(fn => { try { fn(); } catch(e) {} });
+}
+
 async function loadFromFirebase() {
+  // Don't overwrite local state if we just wrote (give Firebase time to persist)
+  if (Date.now() - _lastWriteTime < 8000) {
+    console.log("Skipping poll — wrote recently");
+    return;
+  }
   try {
     const r = await fetch(`${FB_URL}.json`);
     if (!r.ok) { console.error("Firebase load failed:", r.status); return; }
@@ -254,15 +261,17 @@ async function loadFromFirebase() {
         notes:    data.notes    || {},
         messages: data.messages || {},
       };
+      console.log("✓ Loaded from Firebase");
     }
-    console.log("✓ Loaded from Firebase", _store);
   } catch(e) { console.error("Firebase load error:", e); }
   _loaded = true;
-  // Notify all listeners
-  Object.values(_listeners).forEach(fn => fn());
+  notifyListeners();
 }
 
 async function saveToFirebase() {
+  if (_isSaving) return; // prevent concurrent saves
+  _isSaving = true;
+  _lastWriteTime = Date.now();
   try {
     const r = await fetch(`${FB_URL}.json`, {
       method: "PUT",
@@ -272,6 +281,7 @@ async function saveToFirebase() {
     if (!r.ok) console.error("Firebase save failed:", r.status);
     else console.log("✓ Firebase saved");
   } catch(e) { console.error("Firebase save error:", e); }
+  _isSaving = false;
 }
 
 // loadFromFirebase() is called inside the JVI component on mount
