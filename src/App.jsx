@@ -236,24 +236,27 @@ const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
 
 let _store = { teams: [], scores: {}, notes: {}, messages: {} };
 let _loaded = false;
-let _lastWriteTime = 0;        // timestamp of last local write
-let _isSaving = false;         // prevent concurrent saves
+let _pendingSave = null;   // debounce timer
+let _localVersion = 0;     // increments on every local write
+let _remoteVersion = 0;    // version we loaded from Firebase
 const _listeners = {};
 
 function notifyListeners() {
   Object.values(_listeners).forEach(fn => { try { fn(); } catch(e) {} });
 }
 
-async function loadFromFirebase() {
-  // Don't overwrite local state if we just wrote (give Firebase time to persist)
-  if (Date.now() - _lastWriteTime < 8000) {
-    console.log("Skipping poll — wrote recently");
-    return;
-  }
+// Load from Firebase — only update state if no local writes happened since
+async function loadFromFirebase(isInitial = false) {
+  const versionAtLoad = _localVersion;
   try {
     const r = await fetch(`${FB_URL}.json`);
     if (!r.ok) { console.error("Firebase load failed:", r.status); return; }
     const data = await r.json();
+    // If a local write happened while we were fetching, discard the remote data
+    if (_localVersion !== versionAtLoad && !isInitial) {
+      console.log("Discarding stale remote data — local write happened during fetch");
+      return;
+    }
     if (data) {
       _store = {
         teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
@@ -261,27 +264,29 @@ async function loadFromFirebase() {
         notes:    data.notes    || {},
         messages: data.messages || {},
       };
+      _remoteVersion = _localVersion;
       console.log("✓ Loaded from Firebase");
     }
-  } catch(e) { console.error("Firebase load error:", e); }
-  _loaded = true;
+  } catch(e) { console.error("Firebase load error:", e); return; }
+  if (!_loaded) { _loaded = true; }
   notifyListeners();
 }
 
-async function saveToFirebase() {
-  if (_isSaving) return; // prevent concurrent saves
-  _isSaving = true;
-  _lastWriteTime = Date.now();
-  try {
-    const r = await fetch(`${FB_URL}.json`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(_store)
-    });
-    if (!r.ok) console.error("Firebase save failed:", r.status);
-    else console.log("✓ Firebase saved");
-  } catch(e) { console.error("Firebase save error:", e); }
-  _isSaving = false;
+// Save to Firebase — debounced so rapid writes don't spam
+function saveToFirebase() {
+  _localVersion++;
+  if (_pendingSave) clearTimeout(_pendingSave);
+  _pendingSave = setTimeout(async () => {
+    try {
+      const r = await fetch(`${FB_URL}.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(_store)
+      });
+      if (!r.ok) console.error("Firebase save failed:", r.status);
+      else console.log("✓ Firebase saved, version:", _localVersion);
+    } catch(e) { console.error("Firebase save error:", e); }
+  }, 300);  // wait 300ms after last change before writing
 }
 
 // loadFromFirebase() is called inside the JVI component on mount
@@ -357,8 +362,8 @@ export default function JVI() {
 
   // Load Firebase data on mount and poll every 6s
   useEffect(() => {
-    loadFromFirebase();
-    const id = setInterval(() => { if (_loaded) loadFromFirebase(); }, 6000);
+    loadFromFirebase(true);
+    const id = setInterval(() => { if (_loaded) loadFromFirebase(false); }, 8000);
     return () => clearInterval(id);
   }, []);
 
