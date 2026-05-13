@@ -231,74 +231,74 @@ const css = `
 `;
 
 // Shared cloud storage so all devices see the same data
-// ── Firebase Realtime Database ───────────────────────────────────────────────
+// ── Data Storage — localStorage + Firebase backup ────────────────────────────
+// Architecture:
+//   - localStorage is the PRIMARY store (instant, always works, per-device)
+//   - Firebase is used ONLY for initial load (to get other devices' data)
+//   - After initial load, all writes go to localStorage only + Firebase async backup
+//   - No polling. No listeners. No race conditions.
 const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
-const LS_KEY  = "jvi_local_store"; // localStorage backup
+const LS_KEY = "jvi_store_v3";
 
-// Load persisted local store first (instant, survives refresh)
-function loadLocalStore() {
-  try {
-    const v = localStorage.getItem(LS_KEY);
-    return v ? JSON.parse(v) : null;
-  } catch(e) { return null; }
+function readLS() {
+  try { const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+function writeLS(store) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch {}
 }
 
-function saveLocalStore(store) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch(e) {}
+// Master in-memory store — initialized from localStorage immediately
+const _store = readLS() || { teams: [], scores: {}, notes: {}, messages: {} };
+
+// Per-key React setState functions registered by each hook
+const _setters = {};
+
+function updateKey(key, value) {
+  _store[key] = value;
+  writeLS(_store);
+  // Update all React hooks subscribed to this key
+  if (_setters[key]) _setters[key].forEach(fn => fn(value));
+  // Push to Firebase async (fire and forget)
+  fetch(`${FB_URL}.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(_store)
+  }).then(r => r.ok ? console.log("✓ Firebase saved") : console.error("Firebase save failed:", r.status))
+    .catch(e => console.error("Firebase save error:", e));
 }
 
-const _local = loadLocalStore();
-let _store = _local || { teams: [], scores: {}, notes: {}, messages: {} };
-let _loaded = false;
-const _listeners = {};
-
-function notifyListeners() {
-  Object.values(_listeners).forEach(fn => { try { fn(); } catch(e) {} });
-}
-
-// Load from Firebase ONCE on mount — merge with local, remote wins
-async function loadFromFirebase(isInitial = false) {
+// On first load — fetch from Firebase and merge (Firebase wins for initial sync)
+// This runs once when the module loads
+let _initialLoadDone = false;
+async function initialFirebaseLoad() {
   try {
     const r = await fetch(`${FB_URL}.json`);
-    if (!r.ok) { console.error("Firebase load failed:", r.status); _loaded = true; notifyListeners(); return; }
+    if (!r.ok) return;
     const data = await r.json();
-    if (data) {
-      // Remote wins on initial load; after that local wins
-      if (isInitial) {
-        _store = {
-          teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
-          scores:   data.scores   || {},
-          notes:    data.notes    || {},
-          messages: data.messages || {},
-        };
-        saveLocalStore(_store);
-        console.log("✓ Loaded from Firebase (initial)");
-      }
-    }
-  } catch(e) { console.error("Firebase load error:", e); }
-  _loaded = true;
-  notifyListeners();
-}
-
-// Save to Firebase and localStorage together
-let _saveTimer = null;
-function saveToFirebase() {
-  saveLocalStore(_store); // save locally immediately so data is never lost
-  if (_saveTimer) clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(async () => {
-    try {
-      const r = await fetch(`${FB_URL}.json`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(_store)
+    if (!data) return;
+    const remote = {
+      teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
+      scores:   data.scores   || {},
+      notes:    data.notes    || {},
+      messages: data.messages || {},
+    };
+    // Only use remote data if it has more content than local
+    const localTeams = _store.teams?.length || 0;
+    const remoteTeams = remote.teams?.length || 0;
+    const localMsgs = Object.keys(_store.messages || {}).length;
+    const remoteMsgs = Object.keys(remote.messages || {}).length;
+    if (remoteTeams >= localTeams && remoteMsgs >= localMsgs) {
+      Object.assign(_store, remote);
+      writeLS(_store);
+      // Update all hooks with fresh data
+      Object.keys(_setters).forEach(key => {
+        if (_setters[key]) _setters[key].forEach(fn => fn(_store[key]));
       });
-      if (!r.ok) console.error("Firebase save failed:", r.status);
-      else console.log("✓ Firebase saved");
-    } catch(e) { console.error("Firebase save error:", e); }
-  }, 500);
+      console.log("✓ Synced from Firebase");
+    }
+  } catch(e) { console.error("Firebase initial load error:", e); }
+  _initialLoadDone = true;
 }
-
-// loadFromFirebase() is called inside the JVI component on mount
 
 // Simple localStorage hook for local-only UI state
 function useStorage(key, init) {
@@ -312,31 +312,24 @@ function useStorage(key, init) {
   return [state, setState];
 }
 
-// Shared hook — reads/writes from the single _store object
+// Shared hook — reads from _store, writes via updateKey
 function useSharedStorage(key, defaultValue) {
-  const safeDefault = () => {
+  const [state, setState] = useState(() => {
     const v = _store[key];
-    if (v === undefined || v === null) return defaultValue;
-    return v;
-  };
-  const [state, setState] = useState(safeDefault);
-  const listenerId = React.useRef(`${key}_${Math.random()}`);
+    return (v !== undefined && v !== null) ? v : defaultValue;
+  });
 
   useEffect(() => {
-    // Register listener so we update when Firebase data loads/refreshes
-    _listeners[listenerId.current] = () => {
-      const v = _store[key];
-      setState((v !== undefined && v !== null) ? v : defaultValue);
-    };
-    return () => { delete _listeners[listenerId.current]; };
+    if (!_setters[key]) _setters[key] = new Set();
+    _setters[key].add(setState);
+    return () => { if (_setters[key]) _setters[key].delete(setState); };
   }, [key]);
 
   const set = React.useCallback((updater) => {
     setState(prev => {
-      const safePrev = (prev !== undefined && prev !== null) ? prev : defaultValue;
-      const next = typeof updater === "function" ? updater(safePrev) : updater;
-      _store[key] = next;
-      saveToFirebase();
+      const safe = (prev !== undefined && prev !== null) ? prev : defaultValue;
+      const next = typeof updater === "function" ? updater(safe) : updater;
+      updateKey(key, next);
       return next;
     });
   }, [key]);
@@ -369,9 +362,9 @@ export default function JVI() {
 
   const HOLES = COURSE.holes;
 
-  // Load Firebase data once on mount
+  // Sync from Firebase once on mount
   useEffect(() => {
-    loadFromFirebase(true);
+    initialFirebaseLoad();
   }, []);
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2600); };
