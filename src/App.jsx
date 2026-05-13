@@ -595,7 +595,7 @@ export default function JVI() {
             {adminTab === "scoring"     && <AdminScoringTab teams={teams} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins"       && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
+            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => initialFirebaseLoad()} />}
             {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
           </div>
         </div>
@@ -615,7 +615,7 @@ export default function JVI() {
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
             {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
-            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
+            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => initialFirebaseLoad()} />}
           </div>
         </div>
       )}
@@ -711,7 +711,7 @@ export default function JVI() {
             <div style={{ paddingTop: 16 }}>
               {(adminTab !== "skins" && adminTab !== "messages") && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
               {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
+              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => initialFirebaseLoad()} />}
               {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
             </div>
           </div>
