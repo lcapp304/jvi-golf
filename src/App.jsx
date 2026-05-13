@@ -239,20 +239,25 @@ const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com";
 async function fbGet(key) {
   try {
     const r = await fetch(`${FB_URL}/${key}.json`);
-    if (!r.ok) return null;
+    if (!r.ok) { console.error("fbGet failed:", key, r.status, r.statusText); return null; }
     return await r.json();
-  } catch { return null; }
+  } catch(e) { console.error("fbGet error:", key, e); return null; }
 }
 
 async function fbSet(key, value) {
   try {
-    await fetch(`${FB_URL}/${key}.json`, {
+    const r = await fetch(`${FB_URL}/${key}.json`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(value)
     });
-  } catch {}
+    if (!r.ok) console.error("fbSet failed:", key, r.status, r.statusText);
+    else console.log("fbSet OK:", key);
+  } catch(e) { console.error("fbSet error:", key, e); }
 }
+
+// Test Firebase connectivity on startup
+fbSet("jvi_ping", { ts: Date.now(), msg: "connection test" });
 
 // Simple localStorage fallback hook (used for non-shared state)
 function useStorage(key, init) {
