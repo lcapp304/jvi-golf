@@ -1,5 +1,31 @@
 import React, { useState, useEffect } from "react";
 
+
+// Global error boundary — catches any crash and shows a friendly message instead of white screen
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("App error:", error, info); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", background: "#1a3a1a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>⛳</div>
+          <div style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8, fontFamily: "sans-serif" }}>Something went wrong</div>
+          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, marginBottom: 24, fontFamily: "sans-serif", textAlign: "center" }}>
+            {String(this.state.error?.message || "Unknown error")}
+          </div>
+          <button onClick={() => { this.setState({ hasError: false, error: null }); }}
+            style={{ background: "#fff", color: "#1a3a1a", border: "none", borderRadius: 10, padding: "12px 28px", fontFamily: "sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const COURSE = {
   name: "Grandview Golf Club",
   city: "Kalkaska", state: "MI",
@@ -314,12 +340,19 @@ function useStorage(key, init) {
 
 // Normalize a value to match the expected type of the default
 function normalize(value, defaultValue) {
-  if (value === undefined || value === null) return defaultValue;
+  const def = typeof defaultValue === "function" ? defaultValue() : defaultValue;
+  if (value === undefined || value === null) return def;
   // If default is an array, ensure value is also an array
-  if (Array.isArray(defaultValue)) {
+  if (Array.isArray(def)) {
     if (Array.isArray(value)) return value;
-    if (typeof value === "object") return Object.values(value);
-    return defaultValue;
+    if (typeof value === "object" && value !== null) return Object.values(value);
+    return def;
+  }
+  // If default is an object (not array), ensure value is an object
+  if (typeof def === "object" && def !== null) {
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) return value;
+    if (Array.isArray(value)) return {};
+    return def;
   }
   return value;
 }
@@ -348,11 +381,11 @@ function useSharedStorage(key, defaultValue) {
   return [state, set];
 }
 
-export default function JVI() {
-  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  initTeams);
-  const [scores, setScores] = useSharedStorage("jvi_scores", initScores);
-  const [notes,    setNotes]    = useSharedStorage("jvi_notes",    initScores);
-  const [messages, setMessages] = useSharedStorage("jvi_messages", initMessages);
+function JVIApp() {
+  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  []);
+  const [scores, setScores] = useSharedStorage("jvi_scores", {});
+  const [notes,    setNotes]    = useSharedStorage("jvi_notes",    {});
+  const [messages, setMessages] = useSharedStorage("jvi_messages", {});
 
   const [view,         setView]         = useState("login");
   const [currentUser,  setCurrentUser]  = useState(null);
@@ -1384,4 +1417,8 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
       </div>
     </div>
   );
+}
+
+export default function JVI() {
+  return <ErrorBoundary><JVIApp /></ErrorBoundary>;
 }
