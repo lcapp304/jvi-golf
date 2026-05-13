@@ -343,21 +343,39 @@ export default function JVI() {
 
   const handleLogin = () => {
     setLoginError("");
-    if (ADMIN_PINS.includes(adminPin)) { setCurrentUser({ name: "Admin", isAdmin: true }); setView("admin"); return; }
+    if (adminPin === ADMIN_PINS[0]) { setCurrentUser({ name: "Admin #1", isAdmin: true }); setView("admin"); return; }
+    if (adminPin === ADMIN_PINS[1]) { setCurrentUser({ name: "Admin #2", isAdmin: true }); setView("admin"); return; }
     const name = playerName.trim().toLowerCase();
+    // Captain is always players[0]
     for (const team of teams) {
-      if (team.players[team.scorerIndex]?.toLowerCase() === name) {
-        setCurrentUser({ name: team.players[team.scorerIndex], teamId: team.id });
-        setView("scoring"); return;
+      if (team.players[0]?.toLowerCase() === name) {
+        setCurrentUser({ name: team.players[0], teamId: team.id, isCapt: true });
+        setAdminTab("leaderboard"); setView("scoring"); return;
       }
     }
-    setLoginError("Name not found. Only team captains can enter scores.");
+    // Check if name matches any non-captain player — route to viewer
+    for (const team of teams) {
+      for (let i = 1; i < team.players.length; i++) {
+        if (team.players[i]?.toLowerCase() === name) {
+          setCurrentUser({ name: team.players[i], isViewer: true });
+          setAdminTab("leaderboard"); setView("viewer"); return;
+        }
+      }
+    }
+    setLoginError("Name not found. Please check your name matches what the admin entered.");
   };
+
+  const allPlayerNames = () => teams.flatMap(t => t.players.map(p => p.toLowerCase()));
 
   const addTeam = () => {
     const fp = newPlayers.map(p => p.trim()).filter(p => p);
     if (!newTeamName.trim() || fp.length < 1) { showToast("Fill in team name and at least 1 player", "error"); return; }
     if (teams.some(t => t.name.trim().toLowerCase() === newTeamName.trim().toLowerCase())) { showToast("A team with that name already exists", "error"); return; }
+    const existingNames = allPlayerNames();
+    const dupe = fp.find(p => existingNames.includes(p.toLowerCase()));
+    if (dupe) { showToast(`"${dupe}" is already on another team`, "error"); return; }
+    const dupeWithin = fp.find((p, i) => fp.findIndex(q => q.toLowerCase() === p.toLowerCase()) !== i);
+    if (dupeWithin) { showToast(`Duplicate player name: "${dupeWithin}"`, "error"); return; }
     const si = newScorer < fp.length ? newScorer : 0;
     setTeams(prev => [...prev, { id: Date.now(), name: newTeamName.trim(), players: fp, scorerIndex: si }]);
     setNewTeamName(""); setNewPlayers(["","","",""]); setNewScorer(0); showToast("Team added!");
@@ -375,6 +393,11 @@ export default function JVI() {
     const fp = editTeam.players.map(p => p.trim()).filter(p => p);
     if (!editTeam.name.trim() || fp.length < 1) { showToast("Fill in team name and at least 1 player", "error"); return; }
     if (teams.some(t => t.id !== editTeam.id && t.name.trim().toLowerCase() === editTeam.name.trim().toLowerCase())) { showToast("A team with that name already exists", "error"); return; }
+    const existingNames = teams.filter(t => t.id !== editTeam.id).flatMap(t => t.players.map(p => p.toLowerCase()));
+    const dupe = fp.find(p => existingNames.includes(p.toLowerCase()));
+    if (dupe) { showToast(`"${dupe}" is already on another team`, "error"); return; }
+    const dupeWithin = fp.find((p, i) => fp.findIndex(q => q.toLowerCase() === p.toLowerCase()) !== i);
+    if (dupeWithin) { showToast(`Duplicate player name: "${dupeWithin}"`, "error"); return; }
     const si = editTeam.scorerIndex < fp.length ? editTeam.scorerIndex : 0;
     setTeams(prev => prev.map(t => t.id === editTeam.id ? { ...editTeam, name: editTeam.name.trim(), players: fp, scorerIndex: si } : t));
     setEditTeam(null); showToast("Team updated!");
@@ -410,7 +433,7 @@ export default function JVI() {
   const formatToPar = (n) => n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`;
   const toParColor  = (n) => n < 0 ? T.greenAccent : n > 0 ? T.red : "#000";
   const myTeam = currentUser?.teamId ? teams.find(t => t.id === currentUser.teamId) : null;
-  const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setResetConfirm(false); showToast("All data reset"); };
+  const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setMessages([]); setResetConfirm(false); showToast("All data reset"); };
 
   const frontPar = HOLES.slice(0,9).reduce((a,h) => a+h.par, 0);
   const backPar  = HOLES.slice(9,18).reduce((a,h) => a+h.par, 0);
@@ -435,10 +458,15 @@ export default function JVI() {
           </div>
         </div>
         {currentUser && (
-          <button onClick={() => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); }}
-            style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.85)", borderRadius: 20, padding: "7px 16px", cursor: "pointer", fontFamily: T.font, fontSize: 13, fontWeight: 500 }}>
-            Sign out
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ color: "rgba(255,255,255,0.9)", fontFamily: T.font, fontSize: 13, fontWeight: 600, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px" }}>
+              {currentUser.name}
+            </div>
+            <button onClick={() => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); }}
+              style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", borderRadius: 20, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13 }}>
+              Sign out
+            </button>
+          </div>
         )}
       </div>
 
@@ -461,57 +489,13 @@ export default function JVI() {
           </div>
 
           {/* Login card */}
-          <div className="glass" style={{ borderRadius: 20, padding: "24px 22px" }}>
-            <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px", fontFamily: T.font, marginBottom: 4 }}>Welcome</div>
-            <div style={{ fontSize: 15, color: T.label, fontFamily: T.font, marginBottom: 20 }}>Choose how you want to view the outing.</div>
-
-            {/* Three access options */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 22 }}>
-              {[
-                { icon: "👀", label: "View scores", desc: "Follow along" },
-                { icon: "⛳", label: "Enter scores", desc: "Team captain" },
-                { icon: "⚙️", label: "Manage", desc: "Admin only" },
-              ].map(({ icon, label, desc }) => (
-                <div key={label} style={{ background: "rgba(28,61,42,0.06)", border: "1px solid rgba(28,61,42,0.1)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-                  <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, color: T.green }}>{label}</div>
-                  <div style={{ fontFamily: T.font, fontSize: 11, color: T.label }}>{desc}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="section-label">Your name</div>
-            <input className="jvi-input" value={playerName} onChange={e => setPlayerName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="Enter your full name"
-              style={{ marginBottom: 12 }} />
-
-            {/* Viewer button */}
-            <button className="btn-primary" onClick={() => {
-              if (!playerName.trim()) { setLoginError("Please enter your name to continue."); return; }
-              setCurrentUser({ name: playerName.trim(), isViewer: true }); setAdminTab("leaderboard"); setView("viewer");
-            }} style={{ marginBottom: 14, background: "rgba(28,61,42,0.08)", color: T.green, border: `1px solid rgba(28,61,42,0.2)` }}>
-              View Scores &amp; Message Board
-            </button>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 14px", color: "rgba(60,60,67,0.35)", fontSize: 13, fontFamily: T.font }}>
-              <div style={{ flex: 1, height: 1, background: T.sep }} />
-              captain or admin
-              <div style={{ flex: 1, height: 1, background: T.sep }} />
-            </div>
-
-            <div className="section-label">Admin PIN</div>
-            <input className="jvi-input" type="password" value={adminPin} onChange={e => setAdminPin(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="••••"
-              style={{ marginBottom: 16 }} />
-
-            {loginError && (
-              <div style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 12, padding: "12px 14px", color: T.red, fontSize: 14, fontFamily: T.font, marginBottom: 16 }}>
-                {loginError}
-              </div>
-            )}
-
-            <button className="btn-primary" onClick={handleLogin}>Sign In</button>
-          </div>
+          <LoginCard
+            playerName={playerName} setPlayerName={setPlayerName}
+            adminPin={adminPin} setAdminPin={setAdminPin}
+            loginError={loginError} setLoginError={setLoginError}
+            handleLogin={handleLogin}
+            onViewer={(name) => { setCurrentUser({ name, isViewer: true }); setAdminTab("leaderboard"); setView("viewer"); }}
+          />
         </div>
       )}
 
@@ -1028,6 +1012,99 @@ function ScorecardView({ HOLES, frontPar, backPar, frontYds, backYds }) {
   );
 }
 
+// ── Login Card ────────────────────────────────────────────────────────────────
+function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginError, setLoginError, handleLogin, onViewer }) {
+  const [userType, setUserType] = useState(null); // null | "player" | "captain" | "admin"
+
+  const userTypes = [
+    {
+      key: "player",
+      icon: "👀",
+      label: "Player",
+      desc: "View leaderboard, skins & message board",
+    },
+    {
+      key: "captain",
+      icon: "⛳",
+      label: "Captain",
+      desc: "Enter scores for your team + view everything",
+    },
+    {
+      key: "admin",
+      icon: "⚙️",
+      label: "Admin",
+      desc: "Full access — manage teams, scores & settings",
+    },
+  ];
+
+  const handleContinue = () => {
+    setLoginError("");
+    if (!userType) { setLoginError("Please select who you are."); return; }
+    if (userType === "admin") {
+      handleLogin();
+      return;
+    }
+    if (!playerName.trim()) { setLoginError("Please enter your name."); return; }
+    if (userType === "player") {
+      onViewer(playerName.trim());
+      return;
+    }
+    if (userType === "captain") {
+      handleLogin();
+      return;
+    }
+  };
+
+  return (
+    <div className="glass" style={{ borderRadius: 20, padding: "24px 22px" }}>
+      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px", fontFamily: T.font, marginBottom: 4 }}>Welcome</div>
+      <div style={{ fontSize: 15, color: T.label, fontFamily: T.font, marginBottom: 20 }}>Select who you are to get started.</div>
+
+      {/* User type selector */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
+        {userTypes.map(({ key, icon, label, desc }) => (
+          <div key={key} onClick={() => { setUserType(key); setLoginError(""); }}
+            style={{ background: userType === key ? T.green : "rgba(28,61,42,0.05)", border: `2px solid ${userType === key ? T.green : "rgba(28,61,42,0.12)"}`, borderRadius: 14, padding: "12px 8px", textAlign: "center", cursor: "pointer", transition: "all 0.15s" }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+            <div style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: userType === key ? "#fff" : T.green, marginBottom: 4 }}>{label}</div>
+            <div style={{ fontFamily: T.font, fontSize: 10, color: userType === key ? "rgba(255,255,255,0.8)" : T.label, lineHeight: 1.3 }}>{desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Name field — shown for player and captain */}
+      {(userType === "player" || userType === "captain") && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="section-label">{userType === "captain" ? "Captain name" : "Your name"}</div>
+          <input className="jvi-input" value={playerName} onChange={e => setPlayerName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleContinue()}
+            placeholder="Enter your full name" />
+        </div>
+      )}
+
+      {/* PIN field — shown for admin only */}
+      {userType === "admin" && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="section-label">Admin PIN</div>
+          <input className="jvi-input" type="password" value={adminPin} onChange={e => setAdminPin(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleContinue()} placeholder="••••" />
+        </div>
+      )}
+
+      {loginError && (
+        <div style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 12, padding: "12px 14px", color: T.red, fontSize: 14, fontFamily: T.font, marginBottom: 14 }}>
+          {loginError}
+        </div>
+      )}
+
+      <button className="btn-primary" onClick={handleContinue} disabled={!userType}
+        style={{ opacity: userType ? 1 : 0.4 }}>
+        {userType === "player" ? "View Outing" : userType === "captain" ? "Sign In as Captain" : userType === "admin" ? "Sign In as Admin" : "Continue"}
+      </button>
+    </div>
+  );
+}
+
 // ── Message Board ─────────────────────────────────────────────────────────────
 function MessageBoard({ messages, setMessages, currentUser }) {
   const [text, setText] = React.useState("");
@@ -1069,8 +1146,8 @@ function MessageBoard({ messages, setMessages, currentUser }) {
               <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 3, paddingLeft: 4 }}>{msg.author}</div>
             )}
             <div style={{
-              background: isMine(msg) ? T.green : "rgba(255,255,255,0.92)",
-              color: isMine(msg) ? "#fff" : "#000",
+              background: isMine(msg) ? "rgba(52,199,89,0.18)" : "rgba(255,255,255,0.96)",
+              color: "#000",
               borderRadius: isMine(msg) ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
               padding: "10px 14px",
               maxWidth: "78%",
