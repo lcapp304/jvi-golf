@@ -266,46 +266,42 @@ function useStorage(key, init) {
   return [state, setState];
 }
 
-// Shared hook — reads from Firebase on mount, polls every 8s, writes on change
+// Shared hook — Firebase is the single source of truth
+// On mount: load from Firebase (ignore localStorage)
+// On change: write to Firebase immediately
+// Poll every 5s: pull latest from Firebase
 function useSharedStorage(key, init) {
-  const [state, setState] = useState(() => {
-    try { const v = localStorage.getItem("fb_" + key); return v ? JSON.parse(v) : init(); }
-    catch { return init(); }
-  });
-  const [loaded, setLoaded] = useState(false);
+  const [state, setState] = useState(init);
+  const [ready, setReady] = useState(false);
   const lastWrite = React.useRef(0);
 
-  // Load from Firebase on mount
+  // On mount — always load from Firebase first, ignore localStorage
   useEffect(() => {
     fbGet(key).then(v => {
       if (v !== null) {
         setState(v);
-        try { localStorage.setItem("fb_" + key, JSON.stringify(v)); } catch {}
       }
-      setLoaded(true);
-    });
+      setReady(true);
+    }).catch(() => setReady(true));
   }, []);
 
-  // Poll Firebase every 5 seconds for updates from other devices
+  // Poll Firebase every 5 seconds
   useEffect(() => {
+    if (!ready) return;
     const interval = setInterval(() => {
-      if (Date.now() - lastWrite.current < 2000) return;
+      if (Date.now() - lastWrite.current < 3000) return;
       fbGet(key).then(v => {
-        if (v !== null) {
-          setState(v);
-          try { localStorage.setItem("fb_" + key, JSON.stringify(v)); } catch {}
-        }
-      });
+        if (v !== null) setState(v);
+      }).catch(() => {});
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [ready]);
 
-  // Write to Firebase when state changes (after initial load)
+  // Setter — writes to Firebase immediately
   const setStateAndSync = React.useCallback((updater) => {
     setState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       lastWrite.current = Date.now();
-      try { localStorage.setItem("fb_" + key, JSON.stringify(next)); } catch {}
       fbSet(key, next);
       return next;
     });
