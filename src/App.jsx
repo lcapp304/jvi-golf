@@ -256,128 +256,81 @@ const css = `
   @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 400px; } }
 `;
 
-// Shared cloud storage so all devices see the same data
-// ── Data Storage — localStorage + Firebase backup ────────────────────────────
-// Architecture:
-//   - localStorage is the PRIMARY store (instant, always works, per-device)
-//   - Firebase is used ONLY for initial load (to get other devices' data)
-//   - After initial load, all writes go to localStorage only + Firebase async backup
-//   - No polling. No listeners. No race conditions.
+// ── Storage: localStorage (primary) + Firebase (cross-device sync) ────────────
 const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
-const LS_KEY = "jvi_store_v3";
+const LS_KEY  = "jvi_v4";
 
-function readLS() {
-  try { const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
-}
-function writeLS(store) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(store)); } catch {}
-}
+// Safe read/write localStorage
+function lsRead()      { try { const v=localStorage.getItem(LS_KEY); return v?JSON.parse(v):null; } catch{return null;} }
+function lsWrite(data) { try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch{} }
 
-// Master in-memory store — initialized from localStorage immediately
-const _store = readLS() || { teams: [], scores: {}, notes: {}, messages: {} };
+// Safe normalize — always return expected type
+function safeArr(v)  { if(Array.isArray(v)) return v; if(v&&typeof v==="object") return Object.values(v); return []; }
+function safeObj(v)  { if(v&&typeof v==="object"&&!Array.isArray(v)) return v; return {}; }
 
-// Per-key React setState functions registered by each hook
-const _setters = {};
+// Initial state from localStorage
+const _init = lsRead() || {};
+const _db = {
+  teams:    safeArr(_init.teams),
+  scores:   safeObj(_init.scores),
+  notes:    safeObj(_init.notes),
+  messages: safeObj(_init.messages),
+};
 
-function updateKey(key, value) {
-  _store[key] = value;
-  writeLS(_store);
-  // Update all React hooks subscribed to this key
-  if (_setters[key]) _setters[key].forEach(fn => fn(value));
-  // Push to Firebase async (fire and forget)
+// Registry of React setState functions per key
+const _reg = { teams:new Set(), scores:new Set(), notes:new Set(), messages:new Set() };
+
+// Write a key — update memory, localStorage, Firebase
+function dbSet(key, value) {
+  _db[key] = value;
+  lsWrite(_db);
   fetch(`${FB_URL}.json`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(_store)
-  }).then(r => r.ok ? console.log("✓ Firebase saved") : console.error("Firebase save failed:", r.status))
-    .catch(e => console.error("Firebase save error:", e));
+    method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(_db)
+  }).catch(()=>{});
+  _reg[key]?.forEach(fn => { try{fn(value);}catch{} });
 }
 
-// On first load — fetch from Firebase and merge (Firebase wins for initial sync)
-// This runs once when the module loads
-let _initialLoadDone = false;
-async function initialFirebaseLoad() {
+// Pull latest from Firebase and update all hooks
+async function syncFromFirebase() {
   try {
     const r = await fetch(`${FB_URL}.json`);
-    if (!r.ok) return;
+    if(!r.ok) return false;
     const data = await r.json();
-    if (!data) return;
-    const remote = {
-      teams:    Array.isArray(data.teams)    ? data.teams    : (data.teams    ? Object.values(data.teams)    : []),
-      scores:   data.scores   || {},
-      notes:    data.notes    || {},
-      messages: data.messages || {},
-    };
-    // Only use remote data if it has more content than local
-    const localTeams = _store.teams?.length || 0;
-    const remoteTeams = remote.teams?.length || 0;
-    const localMsgs = Object.keys(_store.messages || {}).length;
-    const remoteMsgs = Object.keys(remote.messages || {}).length;
-    if (remoteTeams >= localTeams && remoteMsgs >= localMsgs) {
-      Object.assign(_store, remote);
-      writeLS(_store);
-      // Update all hooks with fresh data
-      Object.keys(_setters).forEach(key => {
-        if (_setters[key]) _setters[key].forEach(fn => fn(_store[key]));
-      });
-      console.log("✓ Synced from Firebase");
-    }
-  } catch(e) { console.error("Firebase initial load error:", e); }
-  _initialLoadDone = true;
+    if(!data) return false;
+    _db.teams    = safeArr(data.teams);
+    _db.scores   = safeObj(data.scores);
+    _db.notes    = safeObj(data.notes);
+    _db.messages = safeObj(data.messages);
+    lsWrite(_db);
+    Object.keys(_reg).forEach(key => _reg[key]?.forEach(fn => { try{fn(_db[key]);}catch{} }));
+    console.log("✓ Synced from Firebase");
+    return true;
+  } catch(e) { console.error("Sync error:", e); return false; }
 }
 
-// Simple localStorage hook for local-only UI state
+// Simple hook for local-only UI state
 function useStorage(key, init) {
-  const [state, setState] = useState(() => {
-    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : init(); }
-    catch { return init(); }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
-  }, [state, key]);
+  const [state, setState] = useState(() => { try{const v=localStorage.getItem(key);return v?JSON.parse(v):init();}catch{return init();} });
+  useEffect(() => { try{localStorage.setItem(key,JSON.stringify(state));}catch{} }, [state,key]);
   return [state, setState];
 }
 
-// Normalize a value to match the expected type of the default
-function normalize(value, defaultValue) {
-  const def = typeof defaultValue === "function" ? defaultValue() : defaultValue;
-  if (value === undefined || value === null) return def;
-  // If default is an array, ensure value is also an array
-  if (Array.isArray(def)) {
-    if (Array.isArray(value)) return value;
-    if (typeof value === "object" && value !== null) return Object.values(value);
-    return def;
-  }
-  // If default is an object (not array), ensure value is an object
-  if (typeof def === "object" && def !== null) {
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) return value;
-    if (Array.isArray(value)) return {};
-    return def;
-  }
-  return value;
-}
-
-// Shared hook — reads from _store, writes via updateKey
-function useSharedStorage(key, defaultValue) {
-  const [state, setState] = useState(() => normalize(_store[key], defaultValue));
-
+// Shared hook — backed by _db, synced via dbSet
+function useSharedStorage(key, def) {
+  const [state, setState] = useState(_db[key] ?? def);
   useEffect(() => {
-    if (!_setters[key]) _setters[key] = new Set();
-    // Wrap setState to always normalize before setting
-    const setter = (v) => setState(normalize(v, defaultValue));
-    _setters[key].add(setter);
-    return () => { if (_setters[key]) _setters[key].delete(setter); };
+    if(!_reg[key]) _reg[key] = new Set();
+    const setter = v => setState(v ?? def);
+    _reg[key].add(setter);
+    return () => _reg[key].delete(setter);
   }, [key]);
-
-  const set = React.useCallback((updater) => {
+  const set = React.useCallback(updater => {
     setState(prev => {
-      const safe = normalize(prev, defaultValue);
-      const next = typeof updater === "function" ? updater(safe) : updater;
-      updateKey(key, next);
+      const next = typeof updater==="function" ? updater(prev??def) : updater;
+      dbSet(key, next);
       return next;
     });
   }, [key]);
-
   return [state, set];
 }
 
@@ -406,9 +359,15 @@ function JVIApp() {
 
   const HOLES = COURSE.holes;
 
-  // Sync from Firebase once on mount
+  // Sync from Firebase on mount + every 15s
+  const [lastSync, setLastSync] = useState(null);
+  const doSync = React.useCallback(() => {
+    syncFromFirebase().then(ok => { if(ok) setLastSync(new Date().toLocaleTimeString()); });
+  }, []);
   useEffect(() => {
-    initialFirebaseLoad();
+    doSync();
+    const id = setInterval(doSync, 15000);
+    return () => clearInterval(id);
   }, []);
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2600); };
@@ -561,6 +520,9 @@ function JVIApp() {
         </div>
         {currentUser && (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={doSync} title="Sync latest data" style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.8)", borderRadius:20, padding:"6px 12px", cursor:"pointer", fontFamily:T.font, fontSize:12 }}>
+              ↻ Sync{lastSync ? ` ${lastSync}` : ""}
+            </button>
             <div style={{ color: "rgba(255,255,255,0.9)", fontFamily: T.font, fontSize: 13, fontWeight: 600, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px" }}>
               {currentUser.name}
             </div>
@@ -639,7 +601,7 @@ function JVIApp() {
             {adminTab === "scoring"     && <AdminScoringTab teams={teams} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins"       && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => initialFirebaseLoad()} />}
+            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => syncFromFirebase()} />}
             {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
           </div>
         </div>
@@ -659,7 +621,7 @@ function JVIApp() {
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
             {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
-            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => initialFirebaseLoad()} />}
+            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => syncFromFirebase()} />}
           </div>
         </div>
       )}
@@ -747,15 +709,15 @@ function JVIApp() {
           <div style={{ marginTop: 8 }}>
             <div className="tab-bar" style={{ borderRadius: "12px 12px 0 0", overflow: "hidden" }}>
               {["leaderboard","skins","competitions","messages"].map(tab => (
-                <button key={tab} className={"tab-btn" + (adminTab === tab || (adminTab !== "skins" && adminTab !== "messages" && tab === "leaderboard") ? " active" : "")} onClick={() => setAdminTab(tab)}>
+                <button key={tab} className={"tab-btn" + (adminTab === tab ? " active" : "")} onClick={() => setAdminTab(tab)}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
             </div>
             <div style={{ paddingTop: 16 }}>
-              {(adminTab !== "skins" && adminTab !== "messages") && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
+              {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
               {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => initialFirebaseLoad()} />}
+              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => syncFromFirebase()} />}
               {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
             </div>
           </div>
