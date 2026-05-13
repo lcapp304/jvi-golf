@@ -336,6 +336,7 @@ export default function JVI() {
   const [loginError,   setLoginError]   = useState("");
   const [toast,        setToast]        = useState(null);
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [signOutConfirm, setSignOutConfirm] = useState(false);
 
   const HOLES = COURSE.holes;
 
@@ -492,10 +493,20 @@ export default function JVI() {
             <div style={{ color: "rgba(255,255,255,0.9)", fontFamily: T.font, fontSize: 13, fontWeight: 600, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px" }}>
               {currentUser.name}
             </div>
-            <button onClick={() => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); }}
+            {signOutConfirm ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "rgba(255,255,255,0.85)", fontFamily: T.font, fontSize: 13 }}>Sure?</span>
+              <button onClick={() => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); setSignOutConfirm(false); }}
+                style={{ background: T.red, border: "none", color: "#fff", borderRadius: 16, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13, fontWeight: 600 }}>Yes</button>
+              <button onClick={() => setSignOutConfirm(false)}
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 16, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13 }}>No</button>
+            </div>
+          ) : (
+            <button onClick={() => setSignOutConfirm(true)}
               style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", borderRadius: 20, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13 }}>
               Sign out
             </button>
+          )}
           </div>
         )}
       </div>
@@ -672,6 +683,7 @@ export default function JVI() {
 
 // ── Teams Tab ─────────────────────────────────────────────────────────────────
 function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, setNewTeamName, newPlayers, setNewPlayers, newScorer, setNewScorer, addTeam, removeTeam }) {
+  const [confirmRemove, setConfirmRemove] = useState(null);
   const inp = { width: "100%", padding: "13px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none" };
 
 
@@ -723,8 +735,17 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button className="btn-ghost" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { const p=[...team.players]; while(p.length<4)p.push(""); setEditTeam({...team,players:p}); }}>Edit</button>
-                    <button className="btn-danger" onClick={() => removeTeam(team.id)}>Remove</button>
+                    <button className="btn-danger" onClick={() => setConfirmRemove(team.id)}>Remove</button>
                   </div>
+                  {confirmRemove === team.id && (
+                    <div style={{ marginTop: 12, background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ fontFamily: T.font, fontSize: 14, color: T.red, marginBottom: 10 }}>Remove <strong>{team.name}</strong>? This cannot be undone.</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn-sm" style={{ background: T.red }} onClick={() => { removeTeam(team.id); setConfirmRemove(null); }}>Yes, remove</button>
+                        <button onClick={() => setConfirmRemove(null)} style={{ padding: "8px 16px", background: "#fff", color: "#000", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 10, fontFamily: T.font, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px" }}>
                   {team.players.map((p, i) => (
