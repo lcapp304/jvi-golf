@@ -1287,7 +1287,10 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
     const t = text.trim();
     if (!t) return;
     const msg = { id: Date.now(), author: currentUser?.name || "Guest", text: t, ts: Date.now() };
-    setMessages(prev => [...prev, msg]);
+    setMessages(prev => {
+      const arr = Array.isArray(prev) ? prev : (prev && typeof prev === "object" ? Object.values(prev) : []);
+      return [...arr, msg];
+    });
     setText("");
   };
 
