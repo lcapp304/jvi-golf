@@ -274,9 +274,7 @@ async function saveToFirebase() {
   } catch(e) { console.error("Firebase save error:", e); }
 }
 
-// Load on startup and poll every 6s
-loadFromFirebase();
-setInterval(() => { if (_loaded) loadFromFirebase(); }, 6000);
+// loadFromFirebase() is called inside the JVI component on mount
 
 // Simple localStorage hook for local-only UI state
 function useStorage(key, init) {
@@ -341,6 +339,13 @@ export default function JVI() {
   const [signOutConfirm, setSignOutConfirm] = useState(false);
 
   const HOLES = COURSE.holes;
+
+  // Load Firebase data on mount and poll every 6s
+  useEffect(() => {
+    loadFromFirebase();
+    const id = setInterval(() => { if (_loaded) loadFromFirebase(); }, 6000);
+    return () => clearInterval(id);
+  }, []);
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2600); };
 
