@@ -157,9 +157,9 @@ const css = `
     transition: all 0.15s; flex-shrink: 0;
   }
   .hole-pill.selected { background: ${T.green}; color: #fff; border-color: ${T.green}; }
-  .hole-pill.done { background: rgba(52,199,89,0.15); color: ${T.green}; border-color: rgba(52,199,89,0.3); }
+  .hole-pill.done { background: #FFD700; color: #1C3D2A; border-color: #FFD700; font-weight: 800; }
   .hole-pill.partial { background: rgba(255,149,0,0.12); color: #b36200; border-color: rgba(255,149,0,0.3); }
-  .hole-pill.empty { background: rgba(118,118,128,0.08); color: rgba(60,60,67,0.5); border-color: rgba(118,118,128,0.15); }
+  .hole-pill.empty { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); }
 
   /* Score input */
   .score-box {
@@ -286,18 +286,17 @@ function useSharedStorage(key, init) {
     });
   }, []);
 
-  // Poll Firebase every 8 seconds for updates from other devices
+  // Poll Firebase every 5 seconds for updates from other devices
   useEffect(() => {
     const interval = setInterval(() => {
-      // Skip polling if we just wrote (within 3s) to avoid overwriting ourselves
-      if (Date.now() - lastWrite.current < 3000) return;
+      if (Date.now() - lastWrite.current < 2000) return;
       fbGet(key).then(v => {
         if (v !== null) {
           setState(v);
           try { localStorage.setItem("fb_" + key, JSON.stringify(v)); } catch {}
         }
       });
-    }, 8000);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -341,28 +340,58 @@ export default function JVI() {
 
   const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2600); };
 
-  const handleLogin = () => {
+  const handleLogin = (userType) => {
     setLoginError("");
-    if (adminPin === ADMIN_PINS[0]) { setCurrentUser({ name: "Admin #1", isAdmin: true }); setView("admin"); return; }
-    if (adminPin === ADMIN_PINS[1]) { setCurrentUser({ name: "Admin #2", isAdmin: true }); setView("admin"); return; }
-    const name = playerName.trim().toLowerCase();
-    // Captain is always players[0]
-    for (const team of teams) {
-      if (team.players[0]?.toLowerCase() === name) {
-        setCurrentUser({ name: team.players[0], teamId: team.id, isCapt: true });
-        setAdminTab("leaderboard"); setView("scoring"); return;
-      }
+    if (userType === "admin") {
+      if (adminPin === ADMIN_PINS[0]) { setCurrentUser({ name: "Admin Tony", isAdmin: true }); setView("admin"); return; }
+      if (adminPin === ADMIN_PINS[1]) { setCurrentUser({ name: "Admin Brian", isAdmin: true }); setView("admin"); return; }
+      setLoginError("Incorrect PIN. Please try again.");
+      return;
     }
-    // Check if name matches any non-captain player — route to viewer
-    for (const team of teams) {
-      for (let i = 1; i < team.players.length; i++) {
-        if (team.players[i]?.toLowerCase() === name) {
-          setCurrentUser({ name: team.players[i], isViewer: true });
-          setAdminTab("leaderboard"); setView("viewer"); return;
+    const name = playerName.trim().toLowerCase();
+    if (!name) { setLoginError("Please enter your name."); return; }
+
+    if (userType === "captain") {
+      // Must match players[0] of a team
+      for (const team of teams) {
+        if (team.players[0]?.toLowerCase() === name) {
+          setCurrentUser({ name: team.players[0], teamId: team.id, isCapt: true });
+          setAdminTab("leaderboard"); setView("scoring"); return;
         }
       }
+      // Check if they are a non-captain player and warn them
+      for (const team of teams) {
+        for (let i = 1; i < team.players.length; i++) {
+          if (team.players[i]?.toLowerCase() === name) {
+            setLoginError("You are registered as a player, not a captain. Please select "Player" instead.");
+            return;
+          }
+        }
+      }
+      setLoginError("Captain name not found. Please check your name matches what the admin entered.");
+      return;
     }
-    setLoginError("Name not found. Please check your name matches what the admin entered.");
+
+    if (userType === "player") {
+      // Must match a non-captain player (players[1+])
+      for (const team of teams) {
+        for (let i = 1; i < team.players.length; i++) {
+          if (team.players[i]?.toLowerCase() === name) {
+            setCurrentUser({ name: team.players[i], isViewer: true });
+            setAdminTab("leaderboard"); setView("viewer"); return;
+          }
+        }
+      }
+      // Check if they are actually a captain and warn them
+      for (const team of teams) {
+        if (team.players[0]?.toLowerCase() === name) {
+          setLoginError("You are registered as a captain. Please select "Captain" instead.");
+          return;
+        }
+      }
+      setLoginError("Player name not found. Please check your name matches what the admin entered.");
+      return;
+    }
   };
 
   const allPlayerNames = () => teams.flatMap(t => t.players.map(p => p.toLowerCase()));
@@ -494,7 +523,6 @@ export default function JVI() {
             adminPin={adminPin} setAdminPin={setAdminPin}
             loginError={loginError} setLoginError={setLoginError}
             handleLogin={handleLogin}
-            onViewer={(name) => { setCurrentUser({ name, isViewer: true }); setAdminTab("leaderboard"); setView("viewer"); }}
           />
         </div>
       )}
@@ -528,7 +556,7 @@ export default function JVI() {
             {adminTab === "scoring"     && <AdminScoringTab teams={teams} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins"       && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} />}
+            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
           </div>
         </div>
       )}
@@ -546,7 +574,7 @@ export default function JVI() {
           <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px 80px" }}>
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} />}
+            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
           </div>
         </div>
       )}
@@ -614,7 +642,7 @@ export default function JVI() {
                   <div className="section-label">Notes (optional)</div>
                   <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2}
                     onChange={e => setNoteInput(prev => ({ ...prev, [key]: e.target.value }))}
-                    placeholder="Memorable moments, conditions…"
+                    placeholder="Closest to pin, longest drive, etc."
                     style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none", resize: "vertical" }} />
                 </div>
               </div>
@@ -632,7 +660,7 @@ export default function JVI() {
             <div style={{ paddingTop: 16 }}>
               {(adminTab !== "skins" && adminTab !== "messages") && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
               {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} />}
+              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
             </div>
           </div>
         </div>
@@ -785,7 +813,13 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
   return (
     <div>
       <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4, color: "#FFD700" }}>Leaderboard</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 16 }}>Tap any row to expand</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+        <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Tap any row to expand</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.1)", borderRadius: 20, padding: "5px 12px" }}>
+          <span style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)", borderRadius: 5, width: 22, height: 22, display: "inline-block" }}></span>
+          <span style={{ fontFamily: T.font, fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>= Skin winner</span>
+        </div>
+      </div>
       {teams.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet.</div>}
       <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
         <div style={{ overflowX: "auto" }}>
@@ -918,7 +952,9 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
 
 // ── Skins ─────────────────────────────────────────────────────────────────────
 function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
+  const [expandedTeam, setExpandedTeam] = useState(null);
   const skins  = HOLES.map(h => ({ hole: h, skin: getSkin(h.hole) }));
+  const wonSkins = skins.filter(({ skin }) => skin && !skin.tie && skin.team);
   const counts = {};
   teams.forEach(t => { counts[t.id] = { team: t, count: 0 }; });
   skins.forEach(({ skin }) => { if (skin && !skin.tie && skin.team) counts[skin.team.id].count++; });
@@ -928,39 +964,80 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
       <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4, color: "#fff" }}>Skins</div>
       <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 20 }}>Resolves once all teams complete a hole.</div>
 
-      {Object.values(counts).some(x => x.count > 0) && (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
-          {Object.values(counts).filter(x => x.count > 0).sort((a,b) => b.count - a.count).map(({ team, count }) => (
-            <div key={team.id} className="glass" style={{ borderRadius: 14, padding: "12px 18px" }}>
-              <div style={{ fontFamily: T.font, fontSize: 12, color: T.label, marginBottom: 2, fontWeight: 500 }}>{team.name}</div>
-              <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, color: T.green }}>{count} skin{count !== 1 ? "s" : ""}</div>
-            </div>
-          ))}
+      {/* ── Top section: team skin counts, expandable ── */}
+      {Object.values(counts).length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>Teams</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {Object.values(counts).sort((a,b) => b.count - a.count).map(({ team, count }) => {
+              const isOpen = expandedTeam === team.id;
+              return (
+                <div key={team.id}>
+                  <div className="glass" onClick={() => setExpandedTeam(isOpen ? null : team.id)}
+                    style={{ borderRadius: isOpen ? "14px 14px 0 0" : 14, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                      {count > 0 && (
+                        <div style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)", borderRadius: 10, padding: "4px 12px", fontFamily: T.font, fontSize: 15, fontWeight: 800, color: "#5C3A00" }}>
+                          {count} skin{count !== 1 ? "s" : ""}
+                        </div>
+                      )}
+                      <div style={{ fontFamily: T.font, fontSize: 16, fontWeight: 700, color: "#000" }}>{team.name}</div>
+                    </div>
+                    <span style={{ color: T.label, fontSize: 11, fontFamily: T.font }}>{isOpen ? "▲" : "▼"}</span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ background: "rgba(52,199,89,0.06)", border: "1px solid rgba(255,255,255,0.5)", borderTop: "none", borderRadius: "0 0 14px 14px", padding: "12px 18px" }}>
+                      <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: T.green, marginBottom: 8 }}>Roster</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px" }}>
+                        {team.players.map((p, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 14, color: "#000" }}>
+                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === 0 ? T.greenAccent : "rgba(118,118,128,0.3)", flexShrink: 0 }} />
+                            {p}{i === 0 && <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}> · captain</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      <div style={{ display: "grid", gap: 8 }}>
+      {/* ── Bottom section: hole-by-hole results with headers ── */}
+      <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>Results by Hole</div>
+      <div style={{ borderRadius: 14, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+        {/* Header row */}
+        <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 80px", background: T.green, padding: "10px 16px", gap: 8 }}>
+          {["Hole", "Team", "Score"].map(h => (
+            <div key={h} style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)" }}>{h}</div>
+          ))}
+        </div>
+        {/* Rows */}
         {skins.map(({ hole, skin }) => (
-          <div className="glass" key={hole.hole} style={{ borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 16, opacity: skin === null ? 0.4 : 1 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: skin === null ? "rgba(118,118,128,0.1)" : skin.tie ? "rgba(255,149,0,0.12)" : "rgba(52,199,89,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.font, fontSize: 15, fontWeight: 800, color: skin === null ? T.label : skin.tie ? T.amber : T.green, flexShrink: 0 }}>
+          <div key={hole.hole} style={{ display: "grid", gridTemplateColumns: "60px 1fr 80px", padding: "12px 16px", gap: 8, borderBottom: `1px solid ${T.sep}`, opacity: skin === null ? 0.45 : 1, alignItems: "center" }}>
+            {/* Hole */}
+            <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#000" }}>
               {hole.hole}
+              <div style={{ fontSize: 11, color: T.label, fontWeight: 400 }}>Par {hole.par}</div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: T.font, fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 2 }}>Par {hole.par} · {hole.yards} yds</div>
+            {/* Team */}
+            <div>
               {skin === null
-                ? <div style={{ fontFamily: T.font, fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Pending</div>
+                ? <span style={{ fontFamily: T.font, fontSize: 13, color: T.label }}>Pending</span>
                 : skin.tie
-                  ? <div style={{ fontFamily: T.font, fontSize: 14, color: T.amber, fontWeight: 600 }}>Tied — no skin awarded</div>
-                  : <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#000" }}>
-                      {skin.team.name}
-                      <span style={{ fontWeight: 500, color: T.greenAccent, marginLeft: 8, fontSize: 13 }}>{skin.score} ({formatToPar(skin.toPar)})</span>
-                    </div>}
+                  ? <span style={{ fontFamily: T.font, fontSize: 13, color: T.amber, fontWeight: 600 }}>Tied — no winner</span>
+                  : <span style={{ fontFamily: T.font, fontSize: 14, fontWeight: 700, color: "#000" }}>{skin.team.name}</span>}
             </div>
-            {skin && !skin.tie && (
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(52,199,89,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.font, fontSize: 15, fontWeight: 800, color: T.green, border: "2px solid rgba(52,199,89,0.3)" }}>
-                {skin.score}
-              </div>
-            )}
+            {/* Score */}
+            <div>
+              {skin && !skin.tie && (
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#FFD700,#FFA500)", borderRadius: 8, padding: "3px 12px", fontFamily: T.font, fontSize: 14, fontWeight: 800, color: "#5C3A00", boxShadow: "0 1px 4px rgba(255,165,0,0.4)" }}>
+                  {skin.score} ({formatToPar(skin.toPar)})
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -1013,7 +1090,7 @@ function ScorecardView({ HOLES, frontPar, backPar, frontYds, backYds }) {
 }
 
 // ── Login Card ────────────────────────────────────────────────────────────────
-function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginError, setLoginError, handleLogin, onViewer }) {
+function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginError, setLoginError, handleLogin }) {
   const [userType, setUserType] = useState(null); // null | "player" | "captain" | "admin"
 
   const userTypes = [
@@ -1040,19 +1117,7 @@ function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginErro
   const handleContinue = () => {
     setLoginError("");
     if (!userType) { setLoginError("Please select who you are."); return; }
-    if (userType === "admin") {
-      handleLogin();
-      return;
-    }
-    if (!playerName.trim()) { setLoginError("Please enter your name."); return; }
-    if (userType === "player") {
-      onViewer(playerName.trim());
-      return;
-    }
-    if (userType === "captain") {
-      handleLogin();
-      return;
-    }
+    handleLogin(userType);
   };
 
   return (
@@ -1106,13 +1171,25 @@ function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginErro
 }
 
 // ── Message Board ─────────────────────────────────────────────────────────────
-function MessageBoard({ messages, setMessages, currentUser }) {
+function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
   const [text, setText] = React.useState("");
+  const [refreshing, setRefreshing] = React.useState(false);
   const bottomRef = React.useRef(null);
+
+  // Pull fresh messages from Firebase whenever the board is opened
+  React.useEffect(() => {
+    if (onRefresh) onRefresh();
+  }, []);
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const doRefresh = async () => {
+    setRefreshing(true);
+    if (onRefresh) await onRefresh();
+    setTimeout(() => setRefreshing(false), 800);
+  };
 
   const send = () => {
     const t = text.trim();
@@ -1132,7 +1209,12 @@ function MessageBoard({ messages, setMessages, currentUser }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: 400 }}>
       <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "#fff", marginBottom: 4 }}>Message Board</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 16 }}>Chat with everyone on the outing</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Chat with everyone on the outing</div>
+        <button onClick={doRefresh} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13, fontWeight: 500 }}>
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
 
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
         {messages.length === 0 && (
@@ -1146,8 +1228,9 @@ function MessageBoard({ messages, setMessages, currentUser }) {
               <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 3, paddingLeft: 4 }}>{msg.author}</div>
             )}
             <div style={{
-              background: isMine(msg) ? "rgba(52,199,89,0.18)" : "rgba(255,255,255,0.96)",
+              background: isMine(msg) ? "#DCF0FF" : "#ffffff",
               color: "#000",
+              border: isMine(msg) ? "1.5px solid rgba(0,122,255,0.25)" : "1.5px solid rgba(118,118,128,0.15)",
               borderRadius: isMine(msg) ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
               padding: "10px 14px",
               maxWidth: "78%",
