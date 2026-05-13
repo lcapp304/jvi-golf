@@ -338,10 +338,13 @@ function useSharedStorage(key, defaultValue) {
 }
 
 export default function JVI() {
-  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  initTeams);
+  const [_teams,  setTeams]  = useSharedStorage("jvi_teams",  initTeams);
   const [scores, setScores] = useSharedStorage("jvi_scores", initScores);
   const [notes,    setNotes]    = useSharedStorage("jvi_notes",    initScores);
   const [messages, setMessages] = useSharedStorage("jvi_messages", initMessages);
+
+  // Always ensure teams is a proper array regardless of what Firebase returns
+  const teams = Array.isArray(_teams) ? _teams : (_teams && typeof _teams === "object" ? Object.values(_teams) : []);
 
   const [view,         setView]         = useState("login");
   const [currentUser,  setCurrentUser]  = useState(null);
@@ -423,7 +426,7 @@ export default function JVI() {
     }
   };
 
-  const allPlayerNames = () => teams.flatMap(t => t.players.map(p => p.toLowerCase()));
+  const allPlayerNames = () => (Array.isArray(teams) ? teams : []).flatMap(t => (t.players || []).map(p => p.toLowerCase()));
 
   const addTeam = () => {
     const fp = newPlayers.map(p => p.trim()).filter(p => p);
