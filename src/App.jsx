@@ -290,22 +290,27 @@ function useStorage(key, init) {
 
 // Shared hook — reads/writes from the single _store object
 function useSharedStorage(key, defaultValue) {
-  const [state, setState] = useState(() => _store[key] || defaultValue);
+  const safeDefault = () => {
+    const v = _store[key];
+    if (v === undefined || v === null) return defaultValue;
+    return v;
+  };
+  const [state, setState] = useState(safeDefault);
   const listenerId = React.useRef(`${key}_${Math.random()}`);
 
   useEffect(() => {
     // Register listener so we update when Firebase data loads/refreshes
     _listeners[listenerId.current] = () => {
-      setState(_store[key] || defaultValue);
+      const v = _store[key];
+      setState((v !== undefined && v !== null) ? v : defaultValue);
     };
-    // If already loaded, sync immediately
-    if (_loaded) setState(_store[key] || defaultValue);
     return () => { delete _listeners[listenerId.current]; };
   }, [key]);
 
   const set = React.useCallback((updater) => {
     setState(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const safePrev = (prev !== undefined && prev !== null) ? prev : defaultValue;
+      const next = typeof updater === "function" ? updater(safePrev) : updater;
       _store[key] = next;
       saveToFirebase();
       return next;
@@ -449,8 +454,8 @@ export default function JVI() {
     showToast("Score saved!");
   };
 
-  const getTeamTotal   = (team) => HOLES.reduce((a, h) => a + (scores[`${team.id}_${h.hole}`] || 0), 0);
-  const getTeamToPar   = (team) => HOLES.reduce((a, h) => { const s = scores[`${team.id}_${h.hole}`]; return s ? a + s - h.par : a; }, 0);
+  const getTeamTotal   = (team) => team && team.id ? HOLES.reduce((a, h) => a + (scores[`${team.id}_${h.hole}`] || 0), 0) : 0;
+  const getTeamToPar   = (team) => team && team.id ? HOLES.reduce((a, h) => { const s = scores[`${team.id}_${h.hole}`]; return s ? a + s - h.par : a; }, 0) : 0;
   const getHolesPlayed = (team) => HOLES.filter(h => scores[`${team.id}_${h.hole}`]).length;
 
   const getSkin = (holeNum) => {
@@ -462,7 +467,7 @@ export default function JVI() {
     return winners.length === 1 ? { team: winners[0].team, score: min, toPar: min - h.par } : { tie: true, score: min };
   };
 
-  const sortedTeams = [...teams].sort((a, b) => {
+  const sortedTeams = [...(Array.isArray(teams) ? teams : [])].sort((a, b) => {
     const ap = getHolesPlayed(a), bp = getHolesPlayed(b);
     if (ap === 0 && bp === 0) return 0; if (ap === 0) return 1; if (bp === 0) return -1;
     return getTeamToPar(a) - getTeamToPar(b);
