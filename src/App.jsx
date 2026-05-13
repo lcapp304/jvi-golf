@@ -614,6 +614,7 @@ export default function JVI() {
           <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px 80px" }}>
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
+            {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
             {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => fbGet("jvi_messages").then(v => { if (v !== null) setMessages(v); })} />}
           </div>
         </div>
