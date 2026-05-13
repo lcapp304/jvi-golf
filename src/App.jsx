@@ -1266,14 +1266,19 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
   const [text, setText] = React.useState("");
   const [refreshing, setRefreshing] = React.useState(false);
   const bottomRef = React.useRef(null);
-  // Messages stored as {id: msg} object
-  const msgList = messages && typeof messages === "object" && !Array.isArray(messages)
-    ? Object.values(messages).sort((a, b) => (a.ts || 0) - (b.ts || 0))
-    : Array.isArray(messages) ? [...messages].sort((a, b) => (a.ts||0)-(b.ts||0)) : [];
+  // Safely convert any format to a sorted array
+  const msgList = (() => {
+    try {
+      if (!messages) return [];
+      if (Array.isArray(messages)) return [...messages].sort((a,b) => (a.ts||0)-(b.ts||0));
+      if (typeof messages === "object") return Object.values(messages).filter(Boolean).sort((a,b) => (a.ts||0)-(b.ts||0));
+      return [];
+    } catch(e) { return []; }
+  })();
 
   // Pull fresh messages from Firebase whenever the board is opened
   React.useEffect(() => {
-    if (onRefresh) onRefresh();
+    try { if (onRefresh) onRefresh(); } catch(e) { console.error("refresh error:", e); }
   }, []);
 
   React.useEffect(() => {
@@ -1291,12 +1296,9 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
     if (!t) return;
     const id = Date.now();
     const msg = { id, author: currentUser?.name || "Guest", text: t, ts: id };
-    console.log("Sending message:", msg);
     setMessages(prev => {
-      const obj = (prev && typeof prev === "object" && !Array.isArray(prev)) ? prev : {};
-      const next = { ...obj, [id]: msg };
-      console.log("New messages state:", next);
-      return next;
+      const obj = (!prev || Array.isArray(prev)) ? {} : (typeof prev === "object" ? prev : {});
+      return { ...obj, [id]: msg };
     });
     setText("");
   };
