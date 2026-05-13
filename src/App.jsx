@@ -282,14 +282,15 @@ function useSharedStorage(key, defaultValue) {
   useEffect(() => {
     console.log("Loading from Firebase:", key);
     fbGet(key).then(result => {
-      // result = undefined means fetch error; null means key exists but empty; array/obj = real data
       if (result !== undefined && result !== null) {
-        console.log("Loaded from Firebase:", key, result);
-        setState(result);
+        // Normalize: if key is a list (teams/messages/etc) ensure it's an array
+        const normalized = Array.isArray(result) ? result : (typeof result === "object" ? Object.values(result) : result);
+        console.log("Loaded from Firebase:", key, normalized);
+        setState(normalized);
       } else {
         console.log("Firebase empty for key:", key, "— using default");
       }
-      canWrite.current = true; // now safe to write
+      canWrite.current = true;
     });
   }, [key]);
 
@@ -300,7 +301,8 @@ function useSharedStorage(key, defaultValue) {
       if (Date.now() - lastWriteTime.current < 5000) return;
       fbGet(key).then(result => {
         if (result !== undefined && result !== null) {
-          setState(result);
+          const normalized = Array.isArray(result) ? result : (typeof result === "object" ? Object.values(result) : result);
+          setState(normalized);
         }
       });
     }, 6000);
@@ -1263,6 +1265,8 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
   const [text, setText] = React.useState("");
   const [refreshing, setRefreshing] = React.useState(false);
   const bottomRef = React.useRef(null);
+  // Firebase can return an object with numeric keys instead of array — normalize it
+  const msgList = Array.isArray(messages) ? messages : (messages && typeof messages === "object" ? Object.values(messages) : []);
 
   // Pull fresh messages from Firebase whenever the board is opened
   React.useEffect(() => {
@@ -1305,12 +1309,12 @@ function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
-        {messages.length === 0 && (
+        {msgList.length === 0 && (
           <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: T.font, fontSize: 14, padding: "40px 0" }}>
             No messages yet. Say something! 👋
           </div>
         )}
-        {messages.map(msg => (
+        {msgList.map(msg => (
           <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine(msg) ? "flex-end" : "flex-start", marginBottom: 10 }}>
             {!isMine(msg) && (
               <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 3, paddingLeft: 4 }}>{msg.author}</div>
