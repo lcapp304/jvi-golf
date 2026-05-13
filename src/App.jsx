@@ -363,7 +363,7 @@ export default function JVI() {
       for (const team of teams) {
         for (let i = 1; i < team.players.length; i++) {
           if (team.players[i]?.toLowerCase() === name) {
-            setLoginError("You are registered as a player, not a captain. Please select "Player" instead.");
+            setLoginError("You are registered as a player, not a captain. Please select 'Player' instead.");
             return;
           }
         }
@@ -385,7 +385,7 @@ export default function JVI() {
       // Check if they are actually a captain and warn them
       for (const team of teams) {
         if (team.players[0]?.toLowerCase() === name) {
-          setLoginError("You are registered as a captain. Please select "Captain" instead.");
+          setLoginError("You are registered as a captain. Please select 'Captain' instead.");
           return;
         }
       }
