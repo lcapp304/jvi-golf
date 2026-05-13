@@ -231,17 +231,16 @@ const css = `
 `;
 
 // Shared cloud storage so all devices see the same data
-// ── Firebase Realtime Database — cross-device shared storage ─────────────────
-// Free tier: 1GB storage, 10GB/month transfer — more than enough for a golf outing.
-// Data URL is public but the database rules only allow read/write (no delete without auth).
+// ── Firebase Realtime Database ───────────────────────────────────────────────
 const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com";
 
 async function fbGet(key) {
   try {
     const r = await fetch(`${FB_URL}/${key}.json`);
-    if (!r.ok) { console.error("fbGet failed:", key, r.status, r.statusText); return null; }
-    return await r.json();
-  } catch(e) { console.error("fbGet error:", key, e); return null; }
+    if (!r.ok) { console.error("fbGet failed:", key, r.status); return undefined; }
+    const data = await r.json(); // returns null if key doesn't exist in Firebase
+    return data;
+  } catch(e) { console.error("fbGet error:", key, e); return undefined; }
 }
 
 async function fbSet(key, value) {
@@ -251,15 +250,12 @@ async function fbSet(key, value) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(value)
     });
-    if (!r.ok) console.error("fbSet failed:", key, r.status, r.statusText);
-    else console.log("fbSet OK:", key);
+    if (!r.ok) console.error("fbSet failed:", key, r.status);
+    else console.log("✓ Firebase write:", key);
   } catch(e) { console.error("fbSet error:", key, e); }
 }
 
-// Test Firebase connectivity on startup
-fbSet("jvi_ping", { ts: Date.now(), msg: "connection test" });
-
-// Simple localStorage fallback hook (used for non-shared state)
+// Simple localStorage hook for local-only state
 function useStorage(key, init) {
   const [state, setState] = useState(() => {
     try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : init(); }
@@ -271,44 +267,61 @@ function useStorage(key, init) {
   return [state, setState];
 }
 
-// Shared hook — Firebase is the single source of truth
-function useSharedStorage(key, init) {
-  const [state, setState] = useState(init);
-  const initialized = React.useRef(false); // true once Firebase data is loaded
-  const lastWrite = React.useRef(0);
+// ── Shared storage hook — Firebase is the ONLY source of truth ───────────────
+// Strategy:
+//   1. Start with empty/default state
+//   2. Load from Firebase on mount — update state when done
+//   3. Expose a setter that writes to BOTH local state AND Firebase
+//   4. Poll Firebase every 6s for changes from other devices
+function useSharedStorage(key, defaultValue) {
+  const [state, setState] = useState(defaultValue);
+  const canWrite = React.useRef(false);  // prevents writes before Firebase loads
+  const lastWriteTime = React.useRef(0);
 
-  // On mount — load from Firebase, mark initialized
+  // Step 1: Load from Firebase on mount
   useEffect(() => {
-    fbGet(key).then(v => {
-      setState(v !== null ? v : init());
-      initialized.current = true;
-    }).catch(() => { initialized.current = true; });
-  }, []);
+    console.log("Loading from Firebase:", key);
+    fbGet(key).then(result => {
+      // result = undefined means fetch error; null means key exists but empty; array/obj = real data
+      if (result !== undefined && result !== null) {
+        console.log("Loaded from Firebase:", key, result);
+        setState(result);
+      } else {
+        console.log("Firebase empty for key:", key, "— using default");
+      }
+      canWrite.current = true; // now safe to write
+    });
+  }, [key]);
 
-  // Poll Firebase every 5 seconds — only update if we haven't written recently
+  // Step 2: Poll every 6s for updates from other devices
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!initialized.current) return;
-      if (Date.now() - lastWrite.current < 4000) return;
-      fbGet(key).then(v => {
-        if (v !== null) setState(v);
-      }).catch(() => {});
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    const id = setInterval(() => {
+      // Don't poll if we wrote very recently (our own write is still fresh)
+      if (Date.now() - lastWriteTime.current < 5000) return;
+      fbGet(key).then(result => {
+        if (result !== undefined && result !== null) {
+          setState(result);
+        }
+      });
+    }, 6000);
+    return () => clearInterval(id);
+  }, [key]);
 
-  // Setter — only writes to Firebase AFTER initialization to prevent overwriting with empty state
-  const setStateAndSync = React.useCallback((updater) => {
-    if (!initialized.current) return; // guard: ignore calls before Firebase loads
+  // Step 3: Setter that writes to Firebase
+  const set = React.useCallback((updater) => {
     setState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      lastWrite.current = Date.now();
-      fbSet(key, next);
+      if (canWrite.current) {
+        lastWriteTime.current = Date.now();
+        fbSet(key, next);
+      } else {
+        console.warn("Write blocked — Firebase not ready yet for:", key);
+      }
       return next;
     });
   }, [key]);
 
-  return [state, setStateAndSync];
+  return [state, set];
 }
 
 export default function JVI() {
