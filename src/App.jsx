@@ -29,9 +29,10 @@ const COURSE = {
   ],
 };
 
-const ADMIN_PIN = "1234";
+const ADMIN_PINS = ["1234", "5678"];
 const initTeams  = () => [];
 const initScores = () => ({});
+const initMessages = () => [];
 
 // Design tokens — Apple-inspired
 const T = {
@@ -43,6 +44,7 @@ const T = {
   amber:     "#FF9500",
   blue:      "#007AFF",
   label:     "rgba(60,60,67,0.6)",
+  labelBright: "rgba(255,255,255,0.8)",
   sep:       "rgba(60,60,67,0.12)",
   card:      "rgba(255,255,255,0.85)",
   radius:    16,
@@ -197,12 +199,18 @@ const css = `
   .lb-table .subtotal { background: rgba(28,61,42,0.05); font-weight: 700; }
   .lb-table .meta-row td { background: rgba(28,61,42,0.03); font-size: 11px; color: rgba(60,60,67,0.55); padding: 5px 6px; border-bottom: 1px solid ${T.sep}; }
   .lb-table .meta-row td.left { text-align: left; padding-left: 14px; font-weight: 600; color: rgba(60,60,67,0.7); }
-  .skin-circle {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; border-radius: 50%;
-    border: 2px solid ${T.green}; font-weight: 700;
-    background: rgba(52,199,89,0.1); color: ${T.green};
-  }
+  .score-eagle2 { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid #7B2FBE;outline:2px solid #7B2FBE;outline-offset:2px;font-weight:800;color:#7B2FBE;font-size:12px; }
+  .score-eagle  { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid #1D9E75;font-weight:800;color:#1D9E75;font-size:12px; }
+  .score-birdie { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:1.5px solid #34C759;font-weight:700;color:#1C3D2A;font-size:12px; }
+  .score-par    { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;font-weight:600;color:#333;font-size:12px; }
+  .score-bogey  { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.5px solid #FF3B30;font-weight:700;color:#FF3B30;font-size:12px;border-radius:2px; }
+  .score-double { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.5px solid #FF3B30;outline:2px solid #FF3B30;outline-offset:2px;font-weight:800;color:#FF3B30;font-size:12px;border-radius:2px; }
+  .score-worse  { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:2px solid #8B0000;font-weight:800;color:#8B0000;font-size:11px;border-radius:2px;background:rgba(139,0,0,0.06); }
+  .skin-winner  { background:linear-gradient(135deg,#FFD700,#FFA500);color:#5C3A00;border-radius:5px;padding:1px 4px;font-weight:800;box-shadow:0 1px 4px rgba(255,165,0,0.45);display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;font-size:12px; }
+  .msg-bubble { border-radius:14px; padding:10px 14px; margin-bottom:8px; max-width:80%; }
+  .msg-input-row { display:flex; gap:8px; padding:12px 16px; background:rgba(255,255,255,0.95); border-top:1px solid rgba(60,60,67,0.12); position:sticky; bottom:0; backdrop-filter:blur(10px); }
+  .msg-input { flex:1; padding:11px 14px; border-radius:22px; border:1px solid rgba(118,118,128,0.25); background:rgba(118,118,128,0.07); font-family:${T.font}; font-size:15px; outline:none; }
+  .msg-send { width:38px;height:38px;border-radius:50%;background:#1C3D2A;border:none;color:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
 
   /* Section label */
   .section-label {
@@ -222,19 +230,43 @@ const css = `
   @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 400px; } }
 `;
 
+// Shared cloud storage so all devices see the same data
+async function cloudGet(key) {
+  try {
+    const res = await window.storage.get(key, true);
+    return res ? JSON.parse(res.value) : null;
+  } catch { return null; }
+}
+async function cloudSet(key, value) {
+  try { await window.storage.set(key, JSON.stringify(value), true); } catch {}
+}
+
 function useStorage(key, init) {
-  const [state, setState] = useState(() => {
-    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : init(); }
-    catch { return init(); }
-  });
-  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(state)); } catch {} }, [state, key]);
+  const [state, setState] = useState(init);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load from cloud on mount
+  useEffect(() => {
+    cloudGet(key).then(v => {
+      if (v !== null) setState(v);
+      setLoaded(true);
+    });
+  }, [key]);
+
+  // Save to cloud on change (after initial load)
+  useEffect(() => {
+    if (!loaded) return;
+    cloudSet(key, state);
+  }, [state, key, loaded]);
+
   return [state, setState];
 }
 
 export default function JVI() {
   const [teams,  setTeams]  = useStorage("jvi_teams",  initTeams);
   const [scores, setScores] = useStorage("jvi_scores", initScores);
-  const [notes,  setNotes]  = useStorage("jvi_notes",  initScores);
+  const [notes,    setNotes]    = useStorage("jvi_notes",    initScores);
+  const [messages, setMessages] = useStorage("jvi_messages", initMessages);
 
   const [view,         setView]         = useState("login");
   const [currentUser,  setCurrentUser]  = useState(null);
@@ -258,7 +290,7 @@ export default function JVI() {
 
   const handleLogin = () => {
     setLoginError("");
-    if (adminPin === ADMIN_PIN) { setCurrentUser({ name: "Admin", isAdmin: true }); setView("admin"); return; }
+    if (ADMIN_PINS.includes(adminPin)) { setCurrentUser({ name: "Admin", isAdmin: true }); setView("admin"); return; }
     const name = playerName.trim().toLowerCase();
     for (const team of teams) {
       if (team.players[team.scorerIndex]?.toLowerCase() === name) {
@@ -266,7 +298,7 @@ export default function JVI() {
         setView("scoring"); return;
       }
     }
-    setLoginError("Name not found as a designated scorer.");
+    setLoginError("Name not found. Only team captains can enter scores.");
   };
 
   const addTeam = () => {
@@ -378,23 +410,46 @@ export default function JVI() {
           {/* Login card */}
           <div className="glass" style={{ borderRadius: 20, padding: "24px 22px" }}>
             <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px", fontFamily: T.font, marginBottom: 4 }}>Welcome</div>
-            <div style={{ fontSize: 15, color: T.label, fontFamily: T.font, marginBottom: 22 }}>Sign in to enter scores or manage the outing.</div>
+            <div style={{ fontSize: 15, color: T.label, fontFamily: T.font, marginBottom: 20 }}>Choose how you want to view the outing.</div>
 
-            <div className="section-label">Scorer name</div>
+            {/* Three access options */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 22 }}>
+              {[
+                { icon: "👀", label: "View scores", desc: "Follow along" },
+                { icon: "⛳", label: "Enter scores", desc: "Team captain" },
+                { icon: "⚙️", label: "Manage", desc: "Admin only" },
+              ].map(({ icon, label, desc }) => (
+                <div key={label} style={{ background: "rgba(28,61,42,0.06)", border: "1px solid rgba(28,61,42,0.1)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
+                  <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, color: T.green }}>{label}</div>
+                  <div style={{ fontFamily: T.font, fontSize: 11, color: T.label }}>{desc}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="section-label">Your name</div>
             <input className="jvi-input" value={playerName} onChange={e => setPlayerName(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="Enter your full name"
-              style={{ marginBottom: 16 }} />
+              style={{ marginBottom: 12 }} />
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 16px", color: "rgba(60,60,67,0.35)", fontSize: 13, fontFamily: T.font }}>
+            {/* Viewer button */}
+            <button className="btn-primary" onClick={() => {
+              if (!playerName.trim()) { setLoginError("Please enter your name to continue."); return; }
+              setCurrentUser({ name: playerName.trim(), isViewer: true }); setAdminTab("leaderboard"); setView("viewer");
+            }} style={{ marginBottom: 14, background: "rgba(28,61,42,0.08)", color: T.green, border: `1px solid rgba(28,61,42,0.2)` }}>
+              View Scores &amp; Message Board
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 14px", color: "rgba(60,60,67,0.35)", fontSize: 13, fontFamily: T.font }}>
               <div style={{ flex: 1, height: 1, background: T.sep }} />
-              or
+              captain or admin
               <div style={{ flex: 1, height: 1, background: T.sep }} />
             </div>
 
             <div className="section-label">Admin PIN</div>
             <input className="jvi-input" type="password" value={adminPin} onChange={e => setAdminPin(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleLogin()} placeholder="••••"
-              style={{ marginBottom: 20 }} />
+              style={{ marginBottom: 16 }} />
 
             {loginError && (
               <div style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 12, padding: "12px 14px", color: T.red, fontSize: 14, fontFamily: T.font, marginBottom: 16 }}>
@@ -402,7 +457,7 @@ export default function JVI() {
               </div>
             )}
 
-            <button className="btn-primary" onClick={handleLogin}>Enter the Round</button>
+            <button className="btn-primary" onClick={handleLogin}>Sign In</button>
           </div>
         </div>
       )}
@@ -411,7 +466,7 @@ export default function JVI() {
       {view === "admin" && (
         <div style={{ marginTop: 20 }}>
           <div className="tab-bar" style={{ paddingLeft: 4, paddingRight: 4 }}>
-            {["teams","scoring","leaderboard","skins"].map(tab => (
+            {["teams","scoring","leaderboard","skins","messages"].map(tab => (
               <button key={tab} className={`tab-btn${adminTab === tab ? " active" : ""}`} onClick={() => setAdminTab(tab)}>
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -436,6 +491,25 @@ export default function JVI() {
             {adminTab === "scoring"     && <AdminScoringTab teams={teams} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
             {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
             {adminTab === "skins"       && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
+            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} />}
+          </div>
+        </div>
+      )}
+
+      {/* ── VIEWER ── */}
+      {view === "viewer" && (
+        <div style={{ marginTop: 20 }}>
+          <div className="tab-bar" style={{ paddingLeft: 4 }}>
+            {["leaderboard","skins","messages"].map(tab => (
+              <button key={tab} className={`tab-btn${adminTab === tab ? " active" : ""}`} onClick={() => setAdminTab(tab)}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+          <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px 80px" }}>
+            {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
+            {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
+            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} />}
           </div>
         </div>
       )}
@@ -449,8 +523,8 @@ export default function JVI() {
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
               {myTeam.players.map((p, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: i === myTeam.scorerIndex ? T.greenAccent : "rgba(255,255,255,0.3)" }} />
-                  <span style={{ color: i === myTeam.scorerIndex ? T.greenAccent : "rgba(255,255,255,0.65)" }}>{p}</span>
+                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: i === 0 ? T.greenAccent : "rgba(255,255,255,0.3)" }} />
+                  <span style={{ color: i === 0 ? T.greenAccent : "rgba(255,255,255,0.65)" }}>{p}</span>
                 </div>
               ))}
             </div>
@@ -510,7 +584,20 @@ export default function JVI() {
             );
           })()}
 
-          <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />
+          <div style={{ marginTop: 8 }}>
+            <div className="tab-bar" style={{ borderRadius: "12px 12px 0 0", overflow: "hidden" }}>
+              {["leaderboard","skins","messages"].map(tab => (
+                <button key={tab} className={"tab-btn" + (adminTab === tab || (adminTab !== "skins" && adminTab !== "messages" && tab === "leaderboard") ? " active" : "")} onClick={() => setAdminTab(tab)}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div style={{ paddingTop: 16 }}>
+              {(adminTab !== "skins" && adminTab !== "messages") && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
+              {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
+              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} />}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -521,17 +608,7 @@ export default function JVI() {
 function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, setNewTeamName, newPlayers, setNewPlayers, newScorer, setNewScorer, addTeam, removeTeam }) {
   const inp = { width: "100%", padding: "13px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none" };
 
-  const PlayerRow = ({ value, onChange, index, scorerIndex, onScorer, name }) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-      <input value={value} onChange={onChange} placeholder={index === 0 ? "Player 1" : `Player ${index + 1} (optional)`} style={inp} />
-      {value.trim() && (
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13, color: T.label, cursor: "pointer", whiteSpace: "nowrap" }}>
-          <input type="radio" name={name} checked={scorerIndex === index} onChange={onScorer} style={{ accentColor: T.green }} />
-          Scorer
-        </label>
-      )}
-    </div>
-  );
+
 
   return (
     <div>
@@ -540,7 +617,16 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
           <div style={{ fontFamily: T.font, fontSize: 17, fontWeight: 700, marginBottom: 14 }}>Edit team</div>
           <input value={editTeam.name} onChange={e => setEditTeam(p => ({ ...p, name: e.target.value }))} placeholder="Team name" style={{ ...inp, marginBottom: 12 }} />
           {editTeam.players.map((p, i) => (
-            <PlayerRow key={i} value={p} onChange={e => setEditTeam(prev => { const pl=[...prev.players]; pl[i]=e.target.value; return {...prev,players:pl}; })} index={i} scorerIndex={editTeam.scorerIndex} onScorer={() => setEditTeam(p => ({...p, scorerIndex: i}))} name="edit-scorer" />
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <input value={p} onChange={e => setEditTeam(prev => { const pl=[...prev.players]; pl[i]=e.target.value; return {...prev,players:pl}; })}
+                placeholder={i === 0 ? "Captain (score entry)" : `Player ${i + 1} (optional)`} style={inp} />
+              {p.trim() && i > 0 && (
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13, color: T.label, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <input type="radio" name="edit-scorer" checked={editTeam.scorerIndex === i} onChange={() => setEditTeam(prev => ({...prev, scorerIndex: i}))} style={{ accentColor: T.green }} />
+                  Captain
+                </label>
+              )}
+            </div>
           ))}
           <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
             <button className="btn-sm" onClick={saveEditTeam}>Save changes</button>
@@ -553,13 +639,22 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
         <div style={{ fontFamily: T.font, fontSize: 17, fontWeight: 700, marginBottom: 14 }}>Add a team</div>
         <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Team name" style={{ ...inp, marginBottom: 12 }} />
         {newPlayers.map((p, i) => (
-          <PlayerRow key={i} value={p} onChange={e => setNewPlayers(prev => { const np=[...prev]; np[i]=e.target.value; return np; })} index={i} scorerIndex={newScorer} onScorer={() => setNewScorer(i)} name="new-scorer" />
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <input value={p} onChange={e => setNewPlayers(prev => { const np=[...prev]; np[i]=e.target.value; return np; })}
+              placeholder={i === 0 ? "Captain (score entry)" : `Player ${i + 1} (optional)`} style={inp} />
+            {p.trim() && i > 0 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13, color: T.label, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <input type="radio" name="new-scorer" checked={newScorer === i} onChange={() => setNewScorer(i)} style={{ accentColor: T.green }} />
+                Captain
+              </label>
+            )}
+          </div>
         ))}
         <button className="btn-sm" style={{ marginTop: 6 }} onClick={addTeam}>Add team</button>
       </div>
 
       {teams.length === 0
-        ? <div style={{ textAlign: "center", color: T.label, fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet. Add your first team above.</div>
+        ? <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet. Add your first team above.</div>
         : <div style={{ display: "grid", gap: 10 }}>
             {teams.map(team => (
               <div className="glass" key={team.id} style={{ borderRadius: 16, padding: "16px 18px" }}>
@@ -626,7 +721,7 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
       </div>
 
       <div style={{ display: "grid", gap: 12 }}>
-        {teams.length === 0 && <div style={{ textAlign: "center", color: T.label, fontFamily: T.font, fontSize: 15, padding: "24px 0" }}>Add teams first.</div>}
+        {teams.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "24px 0" }}>Add teams first.</div>}
         {teams.map(team => {
           const key = `${team.id}_${selectedHole}`, saved = scores[key];
           return (
@@ -663,14 +758,14 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
   return (
     <div>
       <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4 }}>Leaderboard</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: T.label, marginBottom: 16 }}>Tap any team to expand</div>
-      {teams.length === 0 && <div style={{ textAlign: "center", color: T.label, fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet.</div>}
+      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 16 }}>Tap any row to expand</div>
+      {teams.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet.</div>}
       <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
         <div style={{ overflowX: "auto" }}>
           <table className="lb-table">
             <thead>
               <tr>
-                <th className="left">Team</th>
+                <th className="left"></th>
                 {HOLES.slice(0,9).map(h => <th key={h.hole}>{h.hole}</th>)}
                 <th>Out</th>
                 {HOLES.slice(9,18).map(h => <th key={h.hole}>{h.hole}</th>)}
@@ -711,12 +806,32 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
                   const skin = getSkin(h.hole);
                   const wonSkin = skin && !skin.tie && skin.team && skin.team.id === team.id;
                   const diff = s ? s - h.par : null;
-                  const color = diff === null ? T.label : diff < 0 ? T.greenAccent : diff > 0 ? T.red : "#000";
-                  return (
-                    <td style={{ color, fontWeight: s ? 700 : 400 }}>
-                      {s ? (wonSkin ? <span className="skin-circle">{s}</span> : s) : <span style={{ color: "rgba(60,60,67,0.2)" }}>—</span>}
-                    </td>
-                  );
+                  if (!s) return <td><span style={{ color: "rgba(60,60,67,0.2)" }}>—</span></td>;
+                  // Skin overrides everything — gold highlight
+                  if (wonSkin) return <td style={{ padding: "4px 3px" }}><span className="skin-winner">{s}</span></td>;
+                  let style = { display:"inline-flex", alignItems:"center", justifyContent:"center",
+                    width:26, height:26, fontWeight:600, fontSize:12, color:"#000",
+                    fontFamily:T.font };
+                  if (diff <= -3) {
+                    // Triple eagle / albatross: double circle
+                    style = { ...style, borderRadius:"50%", border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
+                  } else if (diff === -2) {
+                    // Eagle: double circle
+                    style = { ...style, borderRadius:"50%", border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
+                  } else if (diff === -1) {
+                    // Birdie: single circle
+                    style = { ...style, borderRadius:"50%", border:"1.5px solid #000" };
+                  } else if (diff === 1) {
+                    // Bogey: single square
+                    style = { ...style, borderRadius:2, border:"1.5px solid #000" };
+                  } else if (diff === 2) {
+                    // Double bogey: double square
+                    style = { ...style, borderRadius:2, border:"1.5px solid #000", outline:"1.5px solid #000", outlineOffset:"2px" };
+                  } else if (diff >= 3) {
+                    // Triple+: double square
+                    style = { ...style, borderRadius:2, border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
+                  }
+                  return <td style={{ padding: "4px 3px" }}><span style={style}>{s}</span></td>;
                 };
                 return (
                   <React.Fragment key={team.id}>
@@ -745,7 +860,7 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
                               {team.players.map((p, i) => (
                                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: T.font, fontSize: 14, color: "#000" }}>
                                   <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === team.scorerIndex ? T.greenAccent : "rgba(118,118,128,0.3)", flexShrink: 0 }} />
-                                  {p}{i === team.scorerIndex && <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}> · scorer</span>}
+                                  {p}{i === 0 && <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}> · captain</span>}
                                 </div>
                               ))}
                             </div>
@@ -783,14 +898,14 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
 
   return (
     <div>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4 }}>Skins</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: T.label, marginBottom: 20 }}>Resolves once all teams complete a hole.</div>
+      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4, color: "#fff" }}>Skins</div>
+      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 20 }}>Resolves once all teams complete a hole.</div>
 
       {Object.values(counts).some(x => x.count > 0) && (
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
           {Object.values(counts).filter(x => x.count > 0).sort((a,b) => b.count - a.count).map(({ team, count }) => (
             <div key={team.id} className="glass" style={{ borderRadius: 14, padding: "12px 18px" }}>
-              <div style={{ fontFamily: T.font, fontSize: 12, color: T.label, marginBottom: 2 }}>{team.name}</div>
+              <div style={{ fontFamily: T.font, fontSize: 12, color: T.label, marginBottom: 2, fontWeight: 500 }}>{team.name}</div>
               <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, color: T.green }}>{count} skin{count !== 1 ? "s" : ""}</div>
             </div>
           ))}
@@ -804,9 +919,9 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
               {hole.hole}
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: T.font, fontSize: 12, color: T.label, marginBottom: 2 }}>Par {hole.par} · {hole.yards} yds</div>
+              <div style={{ fontFamily: T.font, fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 2 }}>Par {hole.par} · {hole.yards} yds</div>
               {skin === null
-                ? <div style={{ fontFamily: T.font, fontSize: 14, color: T.label }}>Pending</div>
+                ? <div style={{ fontFamily: T.font, fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Pending</div>
                 : skin.tie
                   ? <div style={{ fontFamily: T.font, fontSize: 14, color: T.amber, fontWeight: 600 }}>Tied — no skin awarded</div>
                   : <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#000" }}>
@@ -865,6 +980,73 @@ function ScorecardView({ HOLES, frontPar, backPar, frontYds, backYds }) {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Message Board ─────────────────────────────────────────────────────────────
+function MessageBoard({ messages, setMessages, currentUser }) {
+  const [text, setText] = React.useState("");
+  const bottomRef = React.useRef(null);
+
+  React.useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const send = () => {
+    const t = text.trim();
+    if (!t) return;
+    const msg = { id: Date.now(), author: currentUser?.name || "Guest", text: t, ts: Date.now() };
+    setMessages(prev => [...prev, msg]);
+    setText("");
+  };
+
+  const formatTime = (ts) => {
+    const d = new Date(ts);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const isMine = (msg) => msg.author === currentUser?.name;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: 400 }}>
+      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "#fff", marginBottom: 4 }}>Message Board</div>
+      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 16 }}>Chat with everyone on the outing</div>
+
+      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: T.font, fontSize: 14, padding: "40px 0" }}>
+            No messages yet. Say something! 👋
+          </div>
+        )}
+        {messages.map(msg => (
+          <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine(msg) ? "flex-end" : "flex-start", marginBottom: 10 }}>
+            {!isMine(msg) && (
+              <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 3, paddingLeft: 4 }}>{msg.author}</div>
+            )}
+            <div style={{
+              background: isMine(msg) ? T.green : "rgba(255,255,255,0.92)",
+              color: isMine(msg) ? "#fff" : "#000",
+              borderRadius: isMine(msg) ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+              padding: "10px 14px",
+              maxWidth: "78%",
+              fontFamily: T.font, fontSize: 15,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+            }}>
+              {msg.text}
+            </div>
+            <div style={{ fontFamily: T.font, fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3, paddingLeft: 4, paddingRight: 4 }}>{formatTime(msg.ts)}</div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="msg-input-row" style={{ borderRadius: 14, marginTop: 12 }}>
+        <input className="msg-input" value={text} onChange={e => setText(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && send()}
+          placeholder="Type a message…" />
+        <button className="msg-send" onClick={send}>↑</button>
       </div>
     </div>
   );
