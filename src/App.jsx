@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-
-// Global error boundary — catches any crash and shows a friendly message instead of white screen
+// ── Error Boundary ────────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
@@ -9,14 +8,12 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ minHeight: "100vh", background: "#1a3a1a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>⛳</div>
-          <div style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8, fontFamily: "sans-serif" }}>Something went wrong</div>
-          <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, marginBottom: 24, fontFamily: "sans-serif", textAlign: "center" }}>
-            {String(this.state.error?.message || "Unknown error")}
-          </div>
-          <button onClick={() => { this.setState({ hasError: false, error: null }); }}
-            style={{ background: "#fff", color: "#1a3a1a", border: "none", borderRadius: 10, padding: "12px 28px", fontFamily: "sans-serif", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+        <div style={{ minHeight:"100vh", background:"#1a3a1a", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>⛳</div>
+          <div style={{ color:"#fff", fontSize:22, fontWeight:700, marginBottom:8, fontFamily:"sans-serif" }}>Something went wrong</div>
+          <div style={{ color:"rgba(255,255,255,0.65)", fontSize:14, marginBottom:24, fontFamily:"sans-serif", textAlign:"center" }}>{String(this.state.error?.message || "Unknown error")}</div>
+          <button onClick={() => this.setState({ hasError:false, error:null })}
+            style={{ background:"#fff", color:"#1a3a1a", border:"none", borderRadius:10, padding:"12px 28px", fontFamily:"sans-serif", fontSize:15, fontWeight:600, cursor:"pointer" }}>
             Try again
           </button>
         </div>
@@ -26,734 +23,506 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// ── Course Data ───────────────────────────────────────────────────────────────
 const COURSE = {
-  name: "Grandview Golf Club",
-  city: "Kalkaska", state: "MI",
+  name: "Grandview Golf Club", city: "Kalkaska", state: "MI",
   address: "3003 Hagni Road NE, Kalkaska, MI 49646",
-  phone: "(231) 258-3244",
   website: "https://www.grandviewgolfnorth.com",
   tees: "White", rating: "69.5", slope: "129",
   holes: [
-    { hole:  1, par: 4, yards: 362, handicap:  7 },
-    { hole:  2, par: 5, yards: 483, handicap:  5 },
-    { hole:  3, par: 3, yards: 137, handicap:  9 },
-    { hole:  4, par: 4, yards: 366, handicap:  1 },
-    { hole:  5, par: 4, yards: 326, handicap: 15 },
-    { hole:  6, par: 4, yards: 337, handicap: 17 },
-    { hole:  7, par: 5, yards: 552, handicap:  3 },
-    { hole:  8, par: 3, yards: 172, handicap:  5 },
-    { hole:  9, par: 4, yards: 358, handicap: 13 },
-    { hole: 10, par: 4, yards: 327, handicap: 14 },
-    { hole: 11, par: 5, yards: 506, handicap: 10 },
-    { hole: 12, par: 4, yards: 329, handicap: 12 },
-    { hole: 13, par: 4, yards: 267, handicap: 18 },
-    { hole: 14, par: 3, yards: 202, handicap:  6 },
-    { hole: 15, par: 5, yards: 556, handicap:  4 },
-    { hole: 16, par: 3, yards: 147, handicap: 16 },
-    { hole: 17, par: 4, yards: 380, handicap:  2 },
-    { hole: 18, par: 4, yards: 374, handicap:  8 },
+    { hole: 1, par:4, yards:362, handicap: 7 }, { hole: 2, par:5, yards:483, handicap: 5 },
+    { hole: 3, par:3, yards:137, handicap: 9 }, { hole: 4, par:4, yards:366, handicap: 1 },
+    { hole: 5, par:4, yards:326, handicap:15 }, { hole: 6, par:4, yards:337, handicap:17 },
+    { hole: 7, par:5, yards:552, handicap: 3 }, { hole: 8, par:3, yards:172, handicap: 5 },
+    { hole: 9, par:4, yards:358, handicap:13 }, { hole:10, par:4, yards:327, handicap:14 },
+    { hole:11, par:5, yards:506, handicap:10 }, { hole:12, par:4, yards:329, handicap:12 },
+    { hole:13, par:4, yards:267, handicap:18 }, { hole:14, par:3, yards:202, handicap: 6 },
+    { hole:15, par:5, yards:556, handicap: 4 }, { hole:16, par:3, yards:147, handicap:16 },
+    { hole:17, par:4, yards:380, handicap: 2 }, { hole:18, par:4, yards:374, handicap: 8 },
   ],
 };
 
 const ADMIN_PINS = ["1234", "5678"];
-const initTeams  = () => [];
-const initScores = () => ({});
-const initMessages = () => [];
+const HOLES = COURSE.holes;
+const frontPar = HOLES.slice(0,9).reduce((a,h)=>a+h.par,0);
+const backPar  = HOLES.slice(9,18).reduce((a,h)=>a+h.par,0);
+const frontYds = HOLES.slice(0,9).reduce((a,h)=>a+h.yards,0);
+const backYds  = HOLES.slice(9,18).reduce((a,h)=>a+h.yards,0);
 
-// Design tokens — Apple-inspired
+// ── Design Tokens ─────────────────────────────────────────────────────────────
 const T = {
-  green:     "#1C3D2A",
-  greenMid:  "#2D5A3D",
-  greenLight:"#E8F4EC",
-  greenAccent:"#34C759",
-  red:       "#FF3B30",
-  amber:     "#FF9500",
-  blue:      "#007AFF",
-  label:     "rgba(60,60,67,0.6)",
-  labelBright: "rgba(255,255,255,0.8)",
-  sep:       "rgba(60,60,67,0.12)",
-  card:      "rgba(255,255,255,0.85)",
-  radius:    16,
-  radiusSm:  10,
-  radiusXl:  22,
-  font:      "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif",
+  green:"#1C3D2A", greenAccent:"#34C759", red:"#FF3B30", amber:"#FF9500",
+  label:"rgba(60,60,67,0.6)", sep:"rgba(60,60,67,0.12)",
+  font:"-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif",
 };
 
-const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; background: #f2f2f7; }
-
-  .jvi-root { font-family: ${T.font}; min-height: 100vh; background: linear-gradient(160deg, #0a2015 0%, #1c3d2a 40%, #0f2d1c 100%); }
-
-  /* Glassmorphism card */
-  .glass {
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.6);
-  }
-  .glass-dark {
-    background: rgba(28,61,42,0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.12);
-  }
-
-  /* Inputs */
-  .jvi-input {
-    width: 100%; padding: 14px 16px;
-    background: rgba(118,118,128,0.08);
-    border: 1px solid rgba(118,118,128,0.2);
-    border-radius: 12px;
-    font-family: ${T.font}; font-size: 17px; color: #000;
-    outline: none; transition: border-color 0.2s;
-    -webkit-appearance: none;
-  }
-  .jvi-input:focus { border-color: #34C759; background: #fff; }
-  .jvi-input::placeholder { color: rgba(60,60,67,0.4); }
-
-  /* Buttons */
-  .btn-primary {
-    width: 100%; padding: 16px;
-    background: ${T.green};
-    color: #fff; border: none; border-radius: 14px;
-    font-family: ${T.font}; font-size: 17px; font-weight: 600;
-    cursor: pointer; letter-spacing: -0.2px;
-    transition: opacity 0.15s, transform 0.1s;
-  }
-  .btn-primary:active { opacity: 0.82; transform: scale(0.985); }
-
-  .btn-sm {
-    padding: 9px 18px;
-    background: ${T.green}; color: #fff;
-    border: none; border-radius: 10px;
-    font-family: ${T.font}; font-size: 15px; font-weight: 600;
-    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
-    white-space: nowrap;
-  }
-  .btn-sm:active { opacity: 0.8; transform: scale(0.97); }
-
-  .btn-ghost {
-    padding: 9px 18px;
-    background: rgba(118,118,128,0.1); color: #000;
-    border: none; border-radius: 10px;
-    font-family: ${T.font}; font-size: 15px; font-weight: 500;
-    cursor: pointer; transition: background 0.15s;
-  }
-  .btn-ghost:active { background: rgba(118,118,128,0.2); }
-
-  .btn-danger {
-    padding: 8px 14px;
-    background: rgba(255,59,48,0.1); color: ${T.red};
-    border: 1px solid rgba(255,59,48,0.2); border-radius: 10px;
-    font-family: ${T.font}; font-size: 13px; font-weight: 500;
-    cursor: pointer;
-  }
-
-  /* Tabs */
-  .tab-bar {
-    display: flex; overflow-x: auto; gap: 0;
-    border-bottom: 1px solid ${T.sep};
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    scrollbar-width: none;
-  }
-  .tab-bar::-webkit-scrollbar { display: none; }
-  .tab-btn {
-    flex-shrink: 0; padding: 14px 20px;
-    background: transparent; border: none;
-    border-bottom: 2px solid transparent;
-    font-family: ${T.font}; font-size: 15px; font-weight: 500;
-    color: rgba(60,60,67,0.6); cursor: pointer;
-    transition: color 0.15s;
-    white-space: nowrap;
-  }
-  .tab-btn.active {
-    color: ${T.green}; border-bottom-color: ${T.green}; font-weight: 600;
-  }
-
-  /* Hole pills */
-  .hole-pill {
-    width: 40px; height: 40px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: ${T.font}; font-size: 14px; font-weight: 600;
-    cursor: pointer; border: 2px solid transparent;
-    transition: all 0.15s; flex-shrink: 0;
-  }
-  .hole-pill.selected { background: ${T.green}; color: #fff; border-color: ${T.green}; }
-  .hole-pill.done { background: #FFD700; color: #1C3D2A; border-color: #FFD700; font-weight: 800; }
-  .hole-pill.partial { background: rgba(255,149,0,0.12); color: #b36200; border-color: rgba(255,149,0,0.3); }
-  .hole-pill.empty { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.2); }
-
-  /* Score input */
-  .score-box {
-    border: 2.5px solid ${T.green};
-    border-radius: 14px; background: rgba(52,199,89,0.06);
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .score-input {
-    width: 110px; padding: 14px 8px;
-    border: none; background: transparent; outline: none;
-    font-family: ${T.font}; font-size: 38px; font-weight: 700;
-    text-align: center; color: ${T.green};
-    -webkit-appearance: none; appearance: none;
-  }
-  .score-input::placeholder { color: rgba(52,199,89,0.35); }
-
-  /* Toast */
-  .toast {
-    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
-    background: rgba(28,28,30,0.9); color: #fff;
-    padding: 12px 24px; border-radius: 20px;
-    font-family: ${T.font}; font-size: 15px; font-weight: 500;
-    backdrop-filter: blur(10px); z-index: 9999;
-    white-space: nowrap;
-  }
-  .toast.error { background: rgba(255,59,48,0.9); }
-
-  /* Leaderboard table */
-  .lb-table { border-collapse: collapse; width: 100%; min-width: 700px; }
-  .lb-table th { font-family: ${T.font}; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 8px 6px; text-align: center; background: ${T.green}; color: rgba(255,255,255,0.85); }
-  .lb-table th.left { text-align: left; padding-left: 14px; }
-  .lb-table td { font-family: ${T.font}; font-size: 13px; padding: 8px 6px; text-align: center; border-bottom: 1px solid ${T.sep}; }
-  .lb-table td.left { text-align: left; padding-left: 14px; }
-  .lb-table tr.team-row { cursor: pointer; transition: background 0.1s; }
-  .lb-table tr.team-row:hover { background: rgba(52,199,89,0.04); }
-  .lb-table tr.team-row.highlight { background: rgba(52,199,89,0.07); }
-  .lb-table .subtotal { background: rgba(28,61,42,0.05); font-weight: 700; }
-  .lb-table .meta-row td { background: rgba(28,61,42,0.03); font-size: 11px; color: rgba(60,60,67,0.55); padding: 5px 6px; border-bottom: 1px solid ${T.sep}; }
-  .lb-table .meta-row td.left { text-align: left; padding-left: 14px; font-weight: 600; color: rgba(60,60,67,0.7); }
-  .score-eagle2 { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid #7B2FBE;outline:2px solid #7B2FBE;outline-offset:2px;font-weight:800;color:#7B2FBE;font-size:12px; }
-  .score-eagle  { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid #1D9E75;font-weight:800;color:#1D9E75;font-size:12px; }
-  .score-birdie { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:1.5px solid #34C759;font-weight:700;color:#1C3D2A;font-size:12px; }
-  .score-par    { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;font-weight:600;color:#333;font-size:12px; }
-  .score-bogey  { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.5px solid #FF3B30;font-weight:700;color:#FF3B30;font-size:12px;border-radius:2px; }
-  .score-double { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1.5px solid #FF3B30;outline:2px solid #FF3B30;outline-offset:2px;font-weight:800;color:#FF3B30;font-size:12px;border-radius:2px; }
-  .score-worse  { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:2px solid #8B0000;font-weight:800;color:#8B0000;font-size:11px;border-radius:2px;background:rgba(139,0,0,0.06); }
-  .skin-winner  { background:linear-gradient(135deg,#FFD700,#FFA500);color:#5C3A00;border-radius:5px;padding:1px 4px;font-weight:800;box-shadow:0 1px 4px rgba(255,165,0,0.45);display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;font-size:12px; }
-  .msg-bubble { border-radius:14px; padding:10px 14px; margin-bottom:8px; max-width:80%; }
-  .msg-input-row { display:flex; gap:8px; padding:12px 16px; background:rgba(255,255,255,0.95); border-top:1px solid rgba(60,60,67,0.12); position:sticky; bottom:0; backdrop-filter:blur(10px); }
-  .msg-input { flex:1; padding:11px 14px; border-radius:22px; border:1px solid rgba(118,118,128,0.25); background:rgba(118,118,128,0.07); font-family:${T.font}; font-size:15px; outline:none; }
-  .msg-send { width:38px;height:38px;border-radius:50%;background:#1C3D2A;border:none;color:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-
-  /* Section label */
-  .section-label {
-    font-family: ${T.font}; font-size: 12px; font-weight: 600;
-    letter-spacing: 0.06em; text-transform: uppercase;
-    color: rgba(60,60,67,0.5); margin-bottom: 8px;
-  }
-
-  /* List separator */
-  .list-card { background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  .list-row { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid ${T.sep}; }
-  .list-row:last-child { border-bottom: none; }
-
-  /* Animations */
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-  .fade-up { animation: fadeUp 0.4s ease both; }
-  @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 400px; } }
-`;
-
-// ── Storage: Firebase Realtime Database via REST + localStorage backup ─────────
-// Single source of truth: Firebase. localStorage is only a fast initial load.
-// Every write goes to Firebase immediately. Every device reads from Firebase on load.
-// Auto-refresh every 10 seconds ensures all devices stay in sync.
-
-const FB = "https://jvi-golf-default-rtdb.firebaseio.com";
-const LS  = "jvi_v5";
+// ── Storage ───────────────────────────────────────────────────────────────────
+// Architecture: localStorage (instant) + Firebase (cross-device sync)
+// All data lives under /jvi_data in Firebase as { teams, scores, notes, messages }
+const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data.json";
+const LS_KEY = "jvi_v6";
 
 const safe = {
   arr: v => Array.isArray(v) ? v : (v && typeof v==="object" ? Object.values(v) : []),
   obj: v => (v && typeof v==="object" && !Array.isArray(v)) ? v : {},
 };
 
-// localStorage helpers
-const ls = {
-  read: () => { try { const v=localStorage.getItem(LS); return v?JSON.parse(v):{}; } catch{return {};} },
-  write: d => { try { localStorage.setItem(LS, JSON.stringify(d)); } catch{} },
-};
+// Load from localStorage immediately (no flicker)
+let _cache = { teams:[], scores:{}, notes:{}, messages:{} };
+try {
+  const v = localStorage.getItem(LS_KEY);
+  if (v) {
+    const d = JSON.parse(v);
+    _cache = { teams:safe.arr(d.teams), scores:safe.obj(d.scores), notes:safe.obj(d.notes), messages:safe.obj(d.messages) };
+  }
+} catch(e) {}
 
-// Firebase helpers — each key is its own path to avoid overwriting
-const fb = {
-  get: async (key) => {
-    try {
-      const r = await fetch(`${FB}/${key}.json`);
-      if (!r.ok) return null;
-      const d = await r.json();
-      return d;
-    } catch(e) { console.error("FB get error:", key, e); return null; }
-  },
-  set: async (key, value) => {
-    try {
-      await fetch(`${FB}/${key}.json`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(value),
-      });
-    } catch(e) { console.error("FB set error:", key, e); }
-  },
-};
-
-// Central state registry — maps key -> Set of setState functions
-const reg = {};
-function register(key, fn) {
-  if (!reg[key]) reg[key] = new Set();
-  reg[key].add(fn);
-  return () => reg[key].delete(fn);
-}
-function notify(key, value) {
-  reg[key]?.forEach(fn => { try { fn(value); } catch(e) {} });
+function saveLocal() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(_cache)); } catch(e) {}
 }
 
-// Sync a single key from Firebase and notify hooks
-async function syncKey(key, normalize) {
-  const remote = await fb.get(key);
-  if (remote === null) return; // network error, keep local
-  const value = normalize(remote);
-  const local = ls.read();
-  local[key] = value;
-  ls.write(local);
-  notify(key, value);
+// Per-key hook registries
+const _reg = { teams:new Set(), scores:new Set(), notes:new Set(), messages:new Set() };
+function notifyAll() {
+  Object.keys(_reg).forEach(k => _reg[k].forEach(fn => { try { fn(_cache[k]); } catch(e) {} }));
 }
 
-// Sync all keys
+// Write all data to Firebase
+async function pushToFirebase() {
+  try {
+    const r = await fetch(FB_URL, {
+      method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(_cache)
+    });
+    console.log(r.ok ? "✓ Firebase saved" : "✗ Firebase save failed: " + r.status);
+  } catch(e) { console.error("Firebase write error:", e); }
+}
+
+// Read all data from Firebase, update cache + notify all hooks
 async function syncFromFirebase() {
-  console.log("Syncing from Firebase...");
-  await Promise.all([
-    syncKey("jvi_teams",    safe.arr),
-    syncKey("jvi_scores",   safe.obj),
-    syncKey("jvi_notes",    safe.obj),
-    syncKey("jvi_messages", safe.obj),
-  ]);
-  console.log("✓ Sync complete");
+  try {
+    const r = await fetch(FB_URL);
+    if (!r.ok) { console.error("Firebase read failed:", r.status); return; }
+    const data = await r.json();
+    if (!data) { console.log("Firebase empty"); return; }
+    _cache = {
+      teams:    safe.arr(data.teams),
+      scores:   safe.obj(data.scores),
+      notes:    safe.obj(data.notes),
+      messages: safe.obj(data.messages),
+    };
+    saveLocal();
+    notifyAll();
+    console.log("✓ Synced — teams:", _cache.teams.length);
+  } catch(e) { console.error("Firebase sync error:", e); }
 }
 
-// Simple hook for local-only UI state
-function useStorage(key, init) {
-  const [state, setState] = useState(() => {
-    try { const v=localStorage.getItem(key); return v?JSON.parse(v):init(); } catch { return init(); }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
-  }, [state, key]);
-  return [state, setState];
-}
-
-// Shared hook — reads from localStorage on init, updates from Firebase via notify
+// Shared hook
 function useSharedStorage(key, normalize, def) {
-  const cached = ls.read()[key];
-  const [state, setState] = useState(() => {
-    if (cached !== undefined && cached !== null) return normalize(cached);
-    return def;
-  });
-
+  const [state, setState] = useState(() => normalize(_cache[key]) ?? def);
   useEffect(() => {
-    const unsub = register(key, v => setState(normalize(v)));
-    // Also load fresh from Firebase immediately on mount
-    syncKey(key, normalize).then(() => {});
-    return unsub;
+    const fn = v => setState(normalize(v) ?? def);
+    _reg[key].add(fn);
+    return () => _reg[key].delete(fn);
   }, [key]);
-
   const set = React.useCallback((updater) => {
     setState(prev => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      // Write to localStorage immediately
-      const local = ls.read();
-      local[key] = next;
-      ls.write(local);
-      // Write to Firebase immediately (async, non-blocking)
-      fb.set(key, next).then(() => console.log("✓ Saved:", key));
+      const next = typeof updater === "function" ? updater(prev ?? def) : updater;
+      _cache[key] = next;
+      saveLocal();
+      pushToFirebase();
       return next;
     });
   }, [key]);
-
   return [state, set];
 }
 
+// Local-only hook (UI state)
+function useStorage(key, init) {
+  const [state, setState] = useState(() => { try { const v=localStorage.getItem(key); return v?JSON.parse(v):init(); } catch { return init(); } });
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(state)); } catch {} }, [state, key]);
+  return [state, setState];
+}
+
+// ── CSS ───────────────────────────────────────────────────────────────────────
+const css = `
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; }
+  .jvi-root { font-family:${T.font}; min-height:100vh; background:linear-gradient(160deg,#0a2015 0%,#1c3d2a 40%,#0f2d1c 100%); }
+  .glass { background:rgba(255,255,255,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.6); }
+  .glass-dark { background:rgba(28,61,42,0.7); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.12); }
+  .jvi-input { width:100%; padding:14px 16px; background:rgba(118,118,128,0.08); border:1px solid rgba(118,118,128,0.2); border-radius:12px; font-family:${T.font}; font-size:17px; color:#000; outline:none; -webkit-appearance:none; }
+  .jvi-input:focus { border-color:#34C759; background:#fff; }
+  .jvi-input::placeholder { color:rgba(60,60,67,0.4); }
+  .btn-primary { width:100%; padding:16px; background:#1C3D2A; color:#fff; border:none; border-radius:14px; font-family:${T.font}; font-size:17px; font-weight:600; cursor:pointer; }
+  .btn-primary:active { opacity:0.82; }
+  .btn-sm { padding:9px 18px; background:#1C3D2A; color:#fff; border:none; border-radius:10px; font-family:${T.font}; font-size:15px; font-weight:600; cursor:pointer; white-space:nowrap; }
+  .btn-sm:active { opacity:0.8; }
+  .btn-ghost { padding:9px 18px; background:rgba(118,118,128,0.1); color:#000; border:none; border-radius:10px; font-family:${T.font}; font-size:15px; font-weight:500; cursor:pointer; }
+  .btn-danger { padding:8px 14px; background:rgba(255,59,48,0.1); color:#FF3B30; border:1px solid rgba(255,59,48,0.2); border-radius:10px; font-family:${T.font}; font-size:13px; font-weight:500; cursor:pointer; }
+  .tab-bar { display:flex; overflow-x:auto; border-bottom:1px solid ${T.sep}; background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); scrollbar-width:none; }
+  .tab-bar::-webkit-scrollbar { display:none; }
+  .tab-btn { flex-shrink:0; padding:14px 18px; background:transparent; border:none; border-bottom:2px solid transparent; font-family:${T.font}; font-size:15px; font-weight:500; color:rgba(60,60,67,0.6); cursor:pointer; white-space:nowrap; }
+  .tab-btn.active { color:#1C3D2A; border-bottom-color:#1C3D2A; font-weight:600; }
+  .hole-pill { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:${T.font}; font-size:14px; font-weight:600; cursor:pointer; border:2px solid transparent; transition:all 0.15s; flex-shrink:0; }
+  .hole-pill.selected { background:#1C3D2A; color:#fff; border-color:#1C3D2A; }
+  .hole-pill.done { background:#FFD700; color:#1C3D2A; border-color:#FFD700; font-weight:800; }
+  .hole-pill.partial { background:rgba(255,149,0,0.12); color:#b36200; border-color:rgba(255,149,0,0.3); }
+  .hole-pill.empty { background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.2); }
+  .score-box { border:2.5px solid #1C3D2A; border-radius:14px; background:rgba(52,199,89,0.06); display:inline-flex; align-items:center; justify-content:center; }
+  .score-input { width:110px; padding:14px 8px; border:none; background:transparent; outline:none; font-family:${T.font}; font-size:38px; font-weight:700; text-align:center; color:#1C3D2A; -webkit-appearance:none; }
+  .score-input::placeholder { color:rgba(52,199,89,0.35); }
+  .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:rgba(28,28,30,0.9); color:#fff; padding:12px 24px; border-radius:20px; font-family:${T.font}; font-size:15px; font-weight:500; backdrop-filter:blur(10px); z-index:9999; white-space:nowrap; }
+  .toast.error { background:rgba(255,59,48,0.9); }
+  .section-label { font-family:${T.font}; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:rgba(60,60,67,0.5); margin-bottom:8px; }
+  .lb-table { border-collapse:collapse; width:100%; min-width:700px; }
+  .lb-table th { font-family:${T.font}; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:8px 6px; text-align:center; background:#1C3D2A; color:rgba(255,255,255,0.85); }
+  .lb-table th.left { text-align:left; padding-left:14px; }
+  .lb-table td { font-family:${T.font}; font-size:13px; padding:8px 6px; text-align:center; border-bottom:1px solid ${T.sep}; }
+  .lb-table td.left { text-align:left; padding-left:14px; }
+  .lb-table tr.team-row { cursor:pointer; transition:background 0.1s; }
+  .lb-table tr.team-row:hover { background:rgba(52,199,89,0.04); }
+  .lb-table .subtotal { background:rgba(28,61,42,0.05); font-weight:700; }
+  .lb-table .meta-row td { background:rgba(28,61,42,0.03); font-size:11px; color:rgba(60,60,67,0.55); padding:5px 6px; border-bottom:1px solid ${T.sep}; }
+  .lb-table .meta-row td.left { text-align:left; padding-left:14px; font-weight:600; color:rgba(60,60,67,0.7); }
+  .skin-winner { background:linear-gradient(135deg,#FFD700,#FFA500); color:#5C3A00; border-radius:5px; padding:1px 4px; font-weight:800; box-shadow:0 1px 4px rgba(255,165,0,0.45); display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; font-size:12px; }
+  .msg-input-row { display:flex; gap:8px; padding:12px 16px; background:rgba(255,255,255,0.95); border-top:1px solid ${T.sep}; position:sticky; bottom:0; backdrop-filter:blur(10px); }
+  .msg-input { flex:1; padding:11px 14px; border-radius:22px; border:1px solid rgba(118,118,128,0.25); background:rgba(118,118,128,0.07); font-family:${T.font}; font-size:15px; outline:none; }
+  .msg-send { width:38px; height:38px; border-radius:50%; background:#1C3D2A; border:none; color:#fff; font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  .fade-up { animation:fadeUp 0.4s ease both; }
+`;
+
+// ── Main App ──────────────────────────────────────────────────────────────────
 function JVIApp() {
-  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  safe.arr, []);
-  const [scores, setScores] = useSharedStorage("jvi_scores", safe.obj, {});
-  const [notes,    setNotes]    = useSharedStorage("jvi_notes",    safe.obj, {});
-  const [messages, setMessages] = useSharedStorage("jvi_messages", safe.obj, {});
+  const [teams,    setTeams]    = useSharedStorage("teams",    safe.arr, []);
+  const [scores,   setScores]   = useSharedStorage("scores",   safe.obj, {});
+  const [notes,    setNotes]    = useSharedStorage("notes",    safe.obj, {});
+  const [messages, setMessages] = useSharedStorage("messages", safe.obj, {});
 
-  const [view,         setView]         = useState("login");
-  const [currentUser,  setCurrentUser]  = useState(null);
-  const [adminPin,     setAdminPin]     = useState("");
-  const [playerName,   setPlayerName]   = useState("");
-  const [selectedHole, setSelectedHole] = useState(1);
-  const [adminTab,     setAdminTab]     = useState("teams");
-  const [editTeam,     setEditTeam]     = useState(null);
-  const [newTeamName,  setNewTeamName]  = useState("");
-  const [newPlayers,   setNewPlayers]   = useState(["","","",""]);
-  const [newScorer,    setNewScorer]    = useState(0);
-  const [scoreInput,   setScoreInput]   = useState({});
-  const [noteInput,    setNoteInput]    = useState({});
-  const [loginError,   setLoginError]   = useState("");
-  const [toast,        setToast]        = useState(null);
-  const [resetConfirm, setResetConfirm] = useState(false);
-  const [signOutConfirm, setSignOutConfirm] = useState(false);
+  const [view,          setView]          = useState("login");
+  const [currentUser,   setCurrentUser]   = useState(null);
+  const [adminPin,      setAdminPin]      = useState("");
+  const [playerName,    setPlayerName]    = useState("");
+  const [selectedHole,  setSelectedHole]  = useState(1);
+  const [adminTab,      setAdminTab]      = useState("teams");
+  const [editTeam,      setEditTeam]      = useState(null);
+  const [newTeamName,   setNewTeamName]   = useState("");
+  const [newPlayers,    setNewPlayers]    = useState(["","","",""]);
+  const [scoreInput,    setScoreInput]    = useState({});
+  const [noteInput,     setNoteInput]     = useState({});
+  const [loginError,    setLoginError]    = useState("");
+  const [toast,         setToast]         = useState(null);
+  const [resetConfirm,  setResetConfirm]  = useState(false);
+  const [signOutConfirm,setSignOutConfirm]= useState(false);
 
-  const HOLES = COURSE.holes;
-
-  // Sync from Firebase on mount + every 15s
-  const doSync = React.useCallback(() => { syncFromFirebase().then(() => showToast("Synced!")); }, []);
+  // Sync on mount + every 15s
+  const doSync = React.useCallback(() => {
+    syncFromFirebase().then(() => showToast("Synced!"));
+  }, []);
   useEffect(() => {
-    doSync();
-    const id = setInterval(doSync, 15000);
+    syncFromFirebase(); // silent initial sync
+    const id = setInterval(() => syncFromFirebase(), 15000);
     return () => clearInterval(id);
   }, []);
 
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 2600); };
+  const showToast = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null), 2600); };
+
+  const signOut = () => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); setSignOutConfirm(false); };
 
   const handleLogin = (userType) => {
     setLoginError("");
     if (userType === "admin") {
-      if (adminPin === ADMIN_PINS[0]) { setCurrentUser({ name: "Admin Tony", isAdmin: true }); setView("admin"); return; }
-      if (adminPin === ADMIN_PINS[1]) { setCurrentUser({ name: "Admin Brian", isAdmin: true }); setView("admin"); return; }
-      setLoginError("Incorrect PIN. Please try again.");
-      return;
+      if (adminPin === ADMIN_PINS[0]) { setCurrentUser({name:"Admin Tony", isAdmin:true}); setView("admin"); return; }
+      if (adminPin === ADMIN_PINS[1]) { setCurrentUser({name:"Admin Brian", isAdmin:true}); setView("admin"); return; }
+      setLoginError("Incorrect PIN. Please try again."); return;
     }
     const name = playerName.trim().toLowerCase();
     if (!name) { setLoginError("Please enter your name."); return; }
-
     if (userType === "captain") {
-      // Must match players[0] of a team
       for (const team of teams) {
         if (team.players[0]?.toLowerCase() === name) {
-          setCurrentUser({ name: team.players[0], teamId: team.id, isCapt: true });
+          setCurrentUser({name:team.players[0], teamId:team.id, isCapt:true});
           setAdminTab("leaderboard"); setView("scoring"); return;
         }
       }
-      // Check if they are a non-captain player and warn them
       for (const team of teams) {
-        for (let i = 1; i < team.players.length; i++) {
+        for (let i=1; i<team.players.length; i++) {
           if (team.players[i]?.toLowerCase() === name) {
-            setLoginError("You are registered as a player, not a captain. Please select 'Player' instead.");
-            return;
+            setLoginError("You are registered as a player, not a captain. Please select 'Player' instead."); return;
           }
         }
       }
-      setLoginError("Captain name not found. Please check your name matches what the admin entered.");
-      return;
+      setLoginError("Captain name not found. Check your name matches what the admin entered."); return;
     }
-
     if (userType === "player") {
-      // Must match a non-captain player (players[1+])
       for (const team of teams) {
-        for (let i = 1; i < team.players.length; i++) {
+        for (let i=1; i<team.players.length; i++) {
           if (team.players[i]?.toLowerCase() === name) {
-            setCurrentUser({ name: team.players[i], isViewer: true });
+            setCurrentUser({name:team.players[i], isViewer:true});
             setAdminTab("leaderboard"); setView("viewer"); return;
           }
         }
       }
-      // Check if they are actually a captain and warn them
       for (const team of teams) {
         if (team.players[0]?.toLowerCase() === name) {
-          setLoginError("You are registered as a captain. Please select 'Captain' instead.");
-          return;
+          setLoginError("You are registered as a captain. Please select 'Captain' instead."); return;
         }
       }
-      setLoginError("Player name not found. Please check your name matches what the admin entered.");
-      return;
+      setLoginError("Player name not found. Check your name matches what the admin entered."); return;
     }
   };
 
-  const allPlayerNames = () => (teams || []).flatMap(t => (t.players || []).map(p => p.toLowerCase()));
+  const allPlayerNames = () => (teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()));
 
   const addTeam = () => {
-    const fp = newPlayers.map(p => p.trim()).filter(p => p);
-    if (!newTeamName.trim() || fp.length < 1) { showToast("Fill in team name and at least 1 player", "error"); return; }
-    if (teams.some(t => t.name.trim().toLowerCase() === newTeamName.trim().toLowerCase())) { showToast("A team with that name already exists", "error"); return; }
-    const existingNames = allPlayerNames();
-    const dupe = fp.find(p => existingNames.includes(p.toLowerCase()));
-    if (dupe) { showToast(`"${dupe}" is already on another team`, "error"); return; }
-    const dupeWithin = fp.find((p, i) => fp.findIndex(q => q.toLowerCase() === p.toLowerCase()) !== i);
-    if (dupeWithin) { showToast(`Duplicate player name: "${dupeWithin}"`, "error"); return; }
-    const si = newScorer < fp.length ? newScorer : 0;
-    setTeams(prev => [...prev, { id: Date.now(), name: newTeamName.trim(), players: fp, scorerIndex: si }]);
-    setNewTeamName(""); setNewPlayers(["","","",""]); setNewScorer(0); showToast("Team added!");
+    const fp = newPlayers.map(p=>p.trim()).filter(p=>p);
+    if (!newTeamName.trim() || fp.length < 1) { showToast("Fill in team name and at least 1 player","error"); return; }
+    if (teams.some(t=>t.name.trim().toLowerCase()===newTeamName.trim().toLowerCase())) { showToast("A team with that name already exists","error"); return; }
+    const dupe = fp.find(p=>allPlayerNames().includes(p.toLowerCase()));
+    if (dupe) { showToast(`"${dupe}" is already on another team`,"error"); return; }
+    setTeams(prev=>[...(prev||[]), {id:Date.now(), name:newTeamName.trim(), players:fp, scorerIndex:0}]);
+    setNewTeamName(""); setNewPlayers(["","","",""]); showToast("Team added!");
   };
 
   const removeTeam = (id) => {
-    setTeams(prev => prev.filter(t => t.id !== id));
-    const s = { ...scores }, n = { ...notes };
-    Object.keys(s).forEach(k => { if (k.startsWith(id + "_")) delete s[k]; });
-    Object.keys(n).forEach(k => { if (k.startsWith(id + "_")) delete n[k]; });
+    setTeams(prev=>(prev||[]).filter(t=>t.id!==id));
+    const s={...scores}, n={...notes};
+    Object.keys(s).forEach(k=>{if(k.startsWith(id+"_"))delete s[k]});
+    Object.keys(n).forEach(k=>{if(k.startsWith(id+"_"))delete n[k]});
     setScores(s); setNotes(n);
   };
 
   const saveEditTeam = () => {
-    const fp = editTeam.players.map(p => p.trim()).filter(p => p);
-    if (!editTeam.name.trim() || fp.length < 1) { showToast("Fill in team name and at least 1 player", "error"); return; }
-    if (teams.some(t => t.id !== editTeam.id && t.name.trim().toLowerCase() === editTeam.name.trim().toLowerCase())) { showToast("A team with that name already exists", "error"); return; }
-    const existingNames = teams.filter(t => t.id !== editTeam.id).flatMap(t => t.players.map(p => p.toLowerCase()));
-    const dupe = fp.find(p => existingNames.includes(p.toLowerCase()));
-    if (dupe) { showToast(`"${dupe}" is already on another team`, "error"); return; }
-    const dupeWithin = fp.find((p, i) => fp.findIndex(q => q.toLowerCase() === p.toLowerCase()) !== i);
-    if (dupeWithin) { showToast(`Duplicate player name: "${dupeWithin}"`, "error"); return; }
-    const si = editTeam.scorerIndex < fp.length ? editTeam.scorerIndex : 0;
-    setTeams(prev => prev.map(t => t.id === editTeam.id ? { ...editTeam, name: editTeam.name.trim(), players: fp, scorerIndex: si } : t));
+    const fp = editTeam.players.map(p=>p.trim()).filter(p=>p);
+    if (!editTeam.name.trim() || fp.length < 1) { showToast("Fill in team name and at least 1 player","error"); return; }
+    if (teams.some(t=>t.id!==editTeam.id && t.name.trim().toLowerCase()===editTeam.name.trim().toLowerCase())) { showToast("A team with that name already exists","error"); return; }
+    const existingNames = teams.filter(t=>t.id!==editTeam.id).flatMap(t=>t.players.map(p=>p.toLowerCase()));
+    const dupe = fp.find(p=>existingNames.includes(p.toLowerCase()));
+    if (dupe) { showToast(`"${dupe}" is already on another team`,"error"); return; }
+    setTeams(prev=>(prev||[]).map(t=>t.id===editTeam.id ? {...editTeam, name:editTeam.name.trim(), players:fp, scorerIndex:0} : t));
     setEditTeam(null); showToast("Team updated!");
   };
 
   const saveScore = (teamId, hole) => {
-    const key = `${teamId}_${hole}`, val = scoreInput[key];
-    if (!val || isNaN(parseInt(val)) || parseInt(val) < 1) { showToast("Enter a valid score", "error"); return; }
-    setScores(prev => ({ ...prev, [key]: parseInt(val) }));
-    if (noteInput[key] !== undefined) setNotes(prev => ({ ...prev, [key]: noteInput[key] }));
+    const key=`${teamId}_${hole}`, val=scoreInput[key];
+    if (!val || isNaN(parseInt(val)) || parseInt(val)<1) { showToast("Enter a valid score","error"); return; }
+    setScores(prev=>({...(prev||{}), [key]:parseInt(val)}));
+    if (noteInput[key]!==undefined) setNotes(prev=>({...(prev||{}), [key]:noteInput[key]}));
     showToast("Score saved!");
   };
 
-  const getTeamTotal   = (team) => team && team.id ? HOLES.reduce((a, h) => a + (scores[`${team.id}_${h.hole}`] || 0), 0) : 0;
-  const getTeamToPar   = (team) => team && team.id ? HOLES.reduce((a, h) => { const s = scores[`${team.id}_${h.hole}`]; return s ? a + s - h.par : a; }, 0) : 0;
-  const getHolesPlayed = (team) => team && team.id ? HOLES.filter(h => scores[`${team.id}_${h.hole}`]).length : 0;
+  const getTeamTotal   = (team) => team?.id ? HOLES.reduce((a,h)=>a+(scores[`${team.id}_${h.hole}`]||0),0) : 0;
+  const getTeamToPar   = (team) => team?.id ? HOLES.reduce((a,h)=>{const s=scores[`${team.id}_${h.hole}`]; return s?a+s-h.par:a;},0) : 0;
+  const getHolesPlayed = (team) => team?.id ? HOLES.filter(h=>scores[`${team.id}_${h.hole}`]).length : 0;
 
   const getSkin = (holeNum) => {
-    const h = HOLES[holeNum - 1]; if (!h) return null;
-    const hs = teams.map(t => ({ team: t, score: scores[`${t.id}_${holeNum}`] })).filter(x => x.score != null);
-    if (hs.length < teams.length || teams.length === 0) return null;
-    const min = Math.min(...hs.map(x => x.score));
-    const winners = hs.filter(x => x.score === min);
-    return winners.length === 1 ? { team: winners[0].team, score: min, toPar: min - h.par } : { tie: true, score: min };
+    const h=HOLES[holeNum-1]; if(!h) return null;
+    const hs=(teams||[]).map(t=>({team:t,score:scores[`${t.id}_${holeNum}`]})).filter(x=>x.score!=null);
+    if(hs.length<(teams||[]).length||(teams||[]).length===0) return null;
+    const min=Math.min(...hs.map(x=>x.score));
+    const winners=hs.filter(x=>x.score===min);
+    return winners.length===1 ? {team:winners[0].team, score:min, toPar:min-h.par} : {tie:true, score:min};
   };
 
-  const sortedTeams = [...(Array.isArray(teams) ? teams : [])].sort((a, b) => {
-    const ap = getHolesPlayed(a), bp = getHolesPlayed(b);
-    if (ap === 0 && bp === 0) return 0; if (ap === 0) return 1; if (bp === 0) return -1;
-    return getTeamToPar(a) - getTeamToPar(b);
+  const sortedTeams = [...(Array.isArray(teams)?teams:[])].sort((a,b)=>{
+    const ap=getHolesPlayed(a), bp=getHolesPlayed(b);
+    if(ap===0&&bp===0) return 0; if(ap===0) return 1; if(bp===0) return -1;
+    return getTeamToPar(a)-getTeamToPar(b);
   });
 
-  const formatToPar = (n) => n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`;
-  const toParColor  = (n) => n < 0 ? T.greenAccent : n > 0 ? T.red : "#000";
-  const myTeam = currentUser?.teamId ? teams.find(t => t.id === currentUser.teamId) : null;
+  const formatToPar = n => n===0?"E":n>0?`+${n}`:`${n}`;
+  const toParColor  = n => n<0?T.greenAccent:n>0?T.red:"#000";
+  const myTeam = currentUser?.teamId ? (teams||[]).find(t=>t.id===currentUser.teamId) : null;
   const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setMessages({}); setResetConfirm(false); showToast("All data reset"); };
 
-  const frontPar = HOLES.slice(0,9).reduce((a,h) => a+h.par, 0);
-  const backPar  = HOLES.slice(9,18).reduce((a,h) => a+h.par, 0);
-  const frontYds = HOLES.slice(0,9).reduce((a,h) => a+h.yards, 0);
-  const backYds  = HOLES.slice(9,18).reduce((a,h) => a+h.yards, 0);
+  const lbProps = { teams:sortedTeams, scores, notes, HOLES, getTeamTotal, getTeamToPar, getHolesPlayed, formatToPar, toParColor, getSkin, frontPar, backPar, frontYds, backYds };
+  const skinsProps = { teams:(teams||[]), HOLES, getSkin, formatToPar };
+  const compProps = { teams:(teams||[]), notes, HOLES };
+  const msgProps = { messages, setMessages, currentUser, onRefresh:doSync };
+
+  const TabBar = ({ tabs }) => (
+    <div className="tab-bar">
+      {tabs.map(tab => (
+        <button key={tab} className={"tab-btn"+(adminTab===tab?" active":"")} onClick={()=>setAdminTab(tab)}>
+          {tab.charAt(0).toUpperCase()+tab.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="jvi-root">
       <style>{css}</style>
+      {toast && <div className={`toast${toast.type==="error"?" error":""}`}>{toast.msg}</div>}
 
-      {toast && <div className={`toast${toast.type === "error" ? " error" : ""}`}>{toast.msg}</div>}
-
-      {/* ── HEADER ── */}
-      <div style={{ padding: "20px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>⛳</div>
+      {/* Header */}
+      <div style={{padding:"20px 20px 0", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+        <div style={{display:"flex", alignItems:"center", gap:12}}>
+          <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>⛳</div>
           <div>
-            <div style={{ color: "#fff", fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px", fontFamily: T.font, lineHeight: 1.1 }}>JVI</div>
-            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: T.font }}>
-              {COURSE.name}
-            </div>
+            <div style={{color:"#fff",fontSize:24,fontWeight:800,letterSpacing:"-0.5px",fontFamily:T.font,lineHeight:1.1}}>JVI</div>
+            <div style={{color:"rgba(255,255,255,0.55)",fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:T.font}}>{COURSE.name}</div>
           </div>
         </div>
         {currentUser && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={doSync} title="Sync latest data" style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.8)", borderRadius:20, padding:"6px 14px", cursor:"pointer", fontFamily:T.font, fontSize:13, fontWeight:500 }}>
-              ↻ Sync
-            </button>
-            <div style={{ color: "rgba(255,255,255,0.9)", fontFamily: T.font, fontSize: 13, fontWeight: 600, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px" }}>
-              {currentUser.name}
-            </div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <button onClick={doSync} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"rgba(255,255,255,0.85)",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontFamily:T.font,fontSize:13,fontWeight:500}}>↻ Sync</button>
+            <div style={{color:"rgba(255,255,255,0.9)",fontFamily:T.font,fontSize:13,fontWeight:600,background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:20,padding:"6px 14px"}}>{currentUser.name}</div>
             {signOutConfirm ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "rgba(255,255,255,0.85)", fontFamily: T.font, fontSize: 13 }}>Sure?</span>
-              <button onClick={() => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); setSignOutConfirm(false); }}
-                style={{ background: T.red, border: "none", color: "#fff", borderRadius: 16, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13, fontWeight: 600 }}>Yes</button>
-              <button onClick={() => setSignOutConfirm(false)}
-                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 16, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13 }}>No</button>
-            </div>
-          ) : (
-            <button onClick={() => setSignOutConfirm(true)}
-              style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", borderRadius: 20, padding: "6px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13 }}>
-              Sign out
-            </button>
-          )}
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{color:"rgba(255,255,255,0.85)",fontFamily:T.font,fontSize:13}}>Sure?</span>
+                <button onClick={signOut} style={{background:T.red,border:"none",color:"#fff",borderRadius:16,padding:"6px 14px",cursor:"pointer",fontFamily:T.font,fontSize:13,fontWeight:600}}>Yes</button>
+                <button onClick={()=>setSignOutConfirm(false)} style={{background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",borderRadius:16,padding:"6px 14px",cursor:"pointer",fontFamily:T.font,fontSize:13}}>No</button>
+              </div>
+            ) : (
+              <button onClick={()=>setSignOutConfirm(true)} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.7)",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontFamily:T.font,fontSize:13}}>Sign out</button>
+            )}
           </div>
         )}
       </div>
 
-      {/* ── LOGIN ── */}
-      {view === "login" && (
-        <div className="fade-up" style={{ maxWidth: 420, margin: "32px auto 0", padding: "0 20px 40px" }}>
-          {/* Course hero card */}
-          <div className="glass-dark" style={{ borderRadius: 20, padding: "20px 22px", marginBottom: 16 }}>
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: T.font, marginBottom: 6 }}>Today's course</div>
-            <div style={{ color: "#fff", fontSize: 20, fontWeight: 700, fontFamily: T.font, letterSpacing: "-0.3px" }}>{COURSE.name}</div>
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, fontFamily: T.font, marginTop: 2 }}>{COURSE.city}, {COURSE.state}</div>
-            <div style={{ display: "flex", gap: 20, marginTop: 14 }}>
-              {[["Par", "72"], ["Yards", "6,181"], ["Rating", COURSE.rating], ["Slope", COURSE.slope]].map(([l,v]) => (
+      {/* Login */}
+      {view==="login" && (
+        <div className="fade-up" style={{maxWidth:440,margin:"32px auto 0",padding:"0 20px 40px"}}>
+          <div className="glass-dark" style={{borderRadius:20,padding:"20px 22px",marginBottom:16}}>
+            <div style={{color:"rgba(255,255,255,0.5)",fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:T.font,marginBottom:6}}>Today's course</div>
+            <div style={{color:"#fff",fontSize:20,fontWeight:700,fontFamily:T.font,letterSpacing:"-0.3px"}}>{COURSE.name}</div>
+            <div style={{color:"rgba(255,255,255,0.5)",fontSize:13,fontFamily:T.font,marginTop:2}}>{COURSE.city}, {COURSE.state}</div>
+            <div style={{display:"flex",gap:20,marginTop:14}}>
+              {[["Par","72"],["Yards","6,181"],["Rating",COURSE.rating],["Slope",COURSE.slope]].map(([l,v])=>(
                 <div key={l}>
-                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: T.font }}>{l}</div>
-                  <div style={{ color: "#fff", fontSize: 17, fontWeight: 700, fontFamily: T.font }}>{v}</div>
+                  <div style={{color:"rgba(255,255,255,0.4)",fontSize:10,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:T.font}}>{l}</div>
+                  <div style={{color:"#fff",fontSize:17,fontWeight:700,fontFamily:T.font}}>{v}</div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Login card */}
-          <LoginCard
-            playerName={playerName} setPlayerName={setPlayerName}
-            adminPin={adminPin} setAdminPin={setAdminPin}
-            loginError={loginError} setLoginError={setLoginError}
-            handleLogin={handleLogin}
-          />
+          <LoginCard playerName={playerName} setPlayerName={setPlayerName} adminPin={adminPin} setAdminPin={setAdminPin} loginError={loginError} setLoginError={setLoginError} handleLogin={handleLogin} onViewer={(name)=>{setCurrentUser({name,isViewer:true});setAdminTab("leaderboard");setView("viewer");}} />
         </div>
       )}
 
-      {/* ── ADMIN ── */}
-      {view === "admin" && (
-        <div style={{ marginTop: 20 }}>
-          <div className="tab-bar" style={{ paddingLeft: 4, paddingRight: 4 }}>
-            {["teams","scoring","leaderboard","skins","competitions","messages"].map(tab => (
-              <button key={tab} className={`tab-btn${adminTab === tab ? " active" : ""}`} onClick={() => setAdminTab(tab)}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+      {/* Admin */}
+      {view==="admin" && (
+        <div style={{marginTop:20}}>
+          <div className="tab-bar" style={{paddingLeft:4}}>
+            {["teams","scoring","leaderboard","skins","competitions","messages"].map(tab=>(
+              <button key={tab} className={"tab-btn"+(adminTab===tab?" active":"")} onClick={()=>setAdminTab(tab)}>
+                {tab.charAt(0).toUpperCase()+tab.slice(1)}
               </button>
             ))}
-            <div style={{ flex: 1 }} />
-            <button onClick={() => setResetConfirm(true)} style={{ background: "transparent", border: "none", color: T.red, fontFamily: T.font, fontSize: 13, fontWeight: 500, padding: "0 16px", cursor: "pointer" }}>Reset</button>
+            <div style={{flex:1}}/>
+            <button onClick={()=>setResetConfirm(true)} style={{background:"transparent",border:"none",color:T.red,fontFamily:T.font,fontSize:13,fontWeight:500,padding:"0 16px",cursor:"pointer"}}>Reset</button>
           </div>
-
-          <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px 40px" }}>
+          <div style={{maxWidth:960,margin:"0 auto",padding:"20px 16px 40px"}}>
             {resetConfirm && (
-              <div style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 14, padding: 16, marginBottom: 20 }}>
-                <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 600, color: T.red, marginBottom: 8 }}>Reset all data?</div>
-                <div style={{ fontFamily: T.font, fontSize: 14, color: T.label, marginBottom: 14 }}>This will permanently delete all teams, scores, and notes.</div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="btn-sm" style={{ background: T.red }} onClick={resetAll}>Delete everything</button>
-                  <button onClick={() => setResetConfirm(false)} style={{ padding: "9px 20px", background: "#ffffff", color: "#000", border: "1.5px solid rgba(0,0,0,0.18)", borderRadius: 10, fontFamily: T.font, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              <div style={{background:"rgba(255,59,48,0.08)",border:"1px solid rgba(255,59,48,0.2)",borderRadius:14,padding:16,marginBottom:20}}>
+                <div style={{fontFamily:T.font,fontSize:15,fontWeight:600,color:T.red,marginBottom:8}}>Reset all data?</div>
+                <div style={{fontFamily:T.font,fontSize:14,color:T.label,marginBottom:14}}>This will permanently delete all teams, scores, notes, and messages.</div>
+                <div style={{display:"flex",gap:10}}>
+                  <button className="btn-sm" style={{background:T.red}} onClick={resetAll}>Delete everything</button>
+                  <button onClick={()=>setResetConfirm(false)} style={{padding:"9px 20px",background:"#ffffff",color:"#000",border:"1.5px solid rgba(0,0,0,0.18)",borderRadius:10,fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>Cancel</button>
                 </div>
               </div>
             )}
-
-            {adminTab === "teams"       && <TeamsTab teams={teams} editTeam={editTeam} setEditTeam={setEditTeam} saveEditTeam={saveEditTeam} newTeamName={newTeamName} setNewTeamName={setNewTeamName} newPlayers={newPlayers} setNewPlayers={setNewPlayers} newScorer={newScorer} setNewScorer={setNewScorer} addTeam={addTeam} removeTeam={removeTeam} />}
-            {adminTab === "scoring"     && <AdminScoringTab teams={teams} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
-            {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
-            {adminTab === "skins"       && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-            {adminTab === "messages"    && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => syncFromFirebase()} />}
-            {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
+            {adminTab==="teams"        && <TeamsTab teams={teams||[]} editTeam={editTeam} setEditTeam={setEditTeam} saveEditTeam={saveEditTeam} newTeamName={newTeamName} setNewTeamName={setNewTeamName} newPlayers={newPlayers} setNewPlayers={setNewPlayers} addTeam={addTeam} removeTeam={removeTeam} />}
+            {adminTab==="scoring"      && <AdminScoringTab teams={teams||[]} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
+            {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} />}
+            {adminTab==="skins"        && <SkinsView {...skinsProps} />}
+            {adminTab==="competitions" && <CompetitionsView {...compProps} />}
+            {adminTab==="messages"     && <MessageBoard {...msgProps} />}
           </div>
         </div>
       )}
 
-      {/* ── VIEWER ── */}
-      {view === "viewer" && (
-        <div style={{ marginTop: 20 }}>
-          <div className="tab-bar" style={{ paddingLeft: 4 }}>
-            {["leaderboard","skins","competitions","messages"].map(tab => (
-              <button key={tab} className={`tab-btn${adminTab === tab ? " active" : ""}`} onClick={() => setAdminTab(tab)}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
-          <div style={{ maxWidth: 900, margin: "0 auto", padding: "20px 16px 80px" }}>
-            {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
-            {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-            {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
-            {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => syncFromFirebase()} />}
+      {/* Viewer */}
+      {view==="viewer" && (
+        <div style={{marginTop:20}}>
+          <TabBar tabs={["leaderboard","skins","competitions","messages"]} />
+          <div style={{maxWidth:900,margin:"0 auto",padding:"20px 16px 80px"}}>
+            {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} />}
+            {adminTab==="skins"        && <SkinsView {...skinsProps} />}
+            {adminTab==="competitions" && <CompetitionsView {...compProps} />}
+            {adminTab==="messages"     && <MessageBoard {...msgProps} />}
           </div>
         </div>
       )}
 
-      {/* ── SCORER ── */}
-      {view === "scoring" && myTeam && (
-        <div style={{ marginTop: 20, maxWidth: 800, margin: "20px auto 0", padding: "0 16px 40px" }}>
-          {/* Team card */}
-          <div className="glass-dark fade-up" style={{ borderRadius: 18, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ color: "#fff", fontSize: 19, fontWeight: 700, fontFamily: T.font, letterSpacing: "-0.3px", marginBottom: 8 }}>{myTeam.name}</div>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {myTeam.players.map((p, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 13 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: i === 0 ? T.greenAccent : "rgba(255,255,255,0.3)" }} />
-                  <span style={{ color: i === 0 ? T.greenAccent : "rgba(255,255,255,0.65)" }}>{p}</span>
+      {/* Captain/Scorer */}
+      {view==="scoring" && myTeam && (
+        <div style={{maxWidth:800,margin:"20px auto 0",padding:"0 16px 40px"}}>
+          <div className="glass-dark fade-up" style={{borderRadius:18,padding:"16px 20px",marginBottom:16}}>
+            <div style={{color:"#fff",fontSize:19,fontWeight:700,fontFamily:T.font,letterSpacing:"-0.3px",marginBottom:8}}>{myTeam.name}</div>
+            <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+              {(myTeam.players||[]).map((p,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:6,fontFamily:T.font,fontSize:13}}>
+                  <div style={{width:6,height:6,borderRadius:"50%",background:i===0?T.greenAccent:"rgba(255,255,255,0.3)"}}/>
+                  <span style={{color:i===0?T.greenAccent:"rgba(255,255,255,0.65)"}}>{p}{i===0&&<span style={{fontSize:11}}> · captain</span>}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Hole picker */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-            {HOLES.map(h => {
-              const saved = scores[`${myTeam.id}_${h.hole}`];
-              const cls = selectedHole === h.hole ? "selected" : saved ? "done" : "empty";
-              return <div key={h.hole} className={`hole-pill ${cls}`} onClick={() => setSelectedHole(h.hole)}>{h.hole}</div>;
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+            {HOLES.map(h=>{
+              const saved=scores[`${myTeam.id}_${h.hole}`];
+              const cls=selectedHole===h.hole?"selected":saved?"done":"empty";
+              return <div key={h.hole} className={`hole-pill ${cls}`} onClick={()=>setSelectedHole(h.hole)}>{h.hole}</div>;
             })}
           </div>
 
-          {/* Scoring card */}
-          {(() => {
-            const h = HOLES[selectedHole - 1];
-            const key = `${myTeam.id}_${selectedHole}`;
-            const saved = scores[key];
-            const savedNote = notes[key] || "";
-            const skin = getSkin(selectedHole);
+          {(()=>{
+            const h=HOLES[selectedHole-1];
+            const key=`${myTeam.id}_${selectedHole}`;
+            const saved=scores[key];
+            const savedNote=notes[key]||"";
+            const skin=getSkin(selectedHole);
             return (
-              <div className="glass fade-up" style={{ borderRadius: 20, padding: "22px 20px", marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+              <div className="glass fade-up" style={{borderRadius:20,padding:"22px 20px",marginBottom:20}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
                   <div>
-                    <div style={{ fontFamily: T.font, fontSize: 32, fontWeight: 800, letterSpacing: "-1px", color: "#000", lineHeight: 1 }}>Hole {selectedHole}</div>
-                    <div style={{ fontFamily: T.font, fontSize: 15, color: T.label, marginTop: 4 }}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
+                    <div style={{fontFamily:T.font,fontSize:32,fontWeight:800,letterSpacing:"-1px",color:"#000",lineHeight:1}}>Hole {selectedHole}</div>
+                    <div style={{fontFamily:T.font,fontSize:15,color:T.label,marginTop:4}}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
                   </div>
                   {skin && (
-                    <div style={{ background: skin.tie ? "rgba(255,149,0,0.1)" : "rgba(52,199,89,0.1)", border: `1px solid ${skin.tie ? "rgba(255,149,0,0.3)" : "rgba(52,199,89,0.3)"}`, borderRadius: 10, padding: "6px 12px", fontFamily: T.font, fontSize: 12, fontWeight: 600, color: skin.tie ? T.amber : T.green }}>
-                      {skin.tie ? "Tied" : `Skin → ${skin.team.name}`}
+                    <div style={{background:skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"6px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.tie?T.amber:T.green}}>
+                      {skin.tie?"Tied":`Skin → ${skin.team.name}`}
                     </div>
                   )}
                 </div>
-
-                <div style={{ marginBottom: 18 }}>
+                <div style={{marginBottom:18}}>
                   <div className="section-label">Team score</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{display:"flex",alignItems:"center",gap:14}}>
                     <div className="score-box">
-                      <input className="score-input" type="number" min={1} max={20} key={`sc_${key}`}
-                        defaultValue={saved || ""} placeholder="—"
-                        onChange={e => setScoreInput(prev => ({ ...prev, [key]: e.target.value }))} />
+                      <input className="score-input" type="number" min={1} max={20} key={`sc_${key}`} defaultValue={saved||""} placeholder="—" onChange={e=>setScoreInput(prev=>({...prev,[key]:e.target.value}))} />
                     </div>
-                    <button className="btn-sm" onClick={() => saveScore(myTeam.id, selectedHole)}>Save</button>
-                    {saved && <span style={{ fontFamily: T.font, fontSize: 14, color: T.greenAccent, fontWeight: 600 }}>✓ {saved} ({formatToPar(saved - h.par)})</span>}
+                    <button className="btn-sm" onClick={()=>saveScore(myTeam.id,selectedHole)}>Save</button>
+                    {saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved} ({formatToPar(saved-h.par)})</span>}
                   </div>
                 </div>
-
                 <div>
                   <div className="section-label">Notes (optional)</div>
-                  <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2}
-                    onChange={e => setNoteInput(prev => ({ ...prev, [key]: e.target.value }))}
-                    placeholder="Closest to pin, longest drive, etc."
-                    style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none", resize: "vertical", marginBottom: 10 }} />
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <button className="btn-sm" onClick={() => {
-                      const note = noteInput[key] !== undefined ? noteInput[key] : savedNote;
-                      setNotes(prev => ({ ...prev, [key]: note }));
+                  <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc."
+                    style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1px solid rgba(118,118,128,0.2)",background:"rgba(118,118,128,0.06)",fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",marginBottom:10}} />
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <button className="btn-sm" onClick={()=>{
+                      const note=noteInput[key]!==undefined?noteInput[key]:savedNote;
+                      setNotes(prev=>({...(prev||{}),[key]:note}));
                       showToast("Note saved!");
                     }}>Save note</button>
-                    {savedNote && noteInput[key] === undefined && (
-                      <span style={{ fontFamily: T.font, fontSize: 13, color: T.greenAccent }}>✓ Note saved</span>
-                    )}
+                    {savedNote && noteInput[key]===undefined && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent}}>✓ Note saved</span>}
                   </div>
                 </div>
               </div>
             );
           })()}
 
-          <div style={{ marginTop: 8 }}>
-            <div className="tab-bar" style={{ borderRadius: "12px 12px 0 0", overflow: "hidden" }}>
-              {["leaderboard","skins","competitions","messages"].map(tab => (
-                <button key={tab} className={"tab-btn" + (adminTab === tab ? " active" : "")} onClick={() => setAdminTab(tab)}>
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-            <div style={{ paddingTop: 16 }}>
-              {adminTab === "leaderboard" && <LeaderboardView teams={sortedTeams} scores={scores} notes={notes} HOLES={HOLES} getTeamTotal={getTeamTotal} getTeamToPar={getTeamToPar} getHolesPlayed={getHolesPlayed} formatToPar={formatToPar} toParColor={toParColor} getSkin={getSkin} highlightTeamId={myTeam.id} frontPar={frontPar} backPar={backPar} frontYds={frontYds} backYds={backYds} />}
-              {adminTab === "skins" && <SkinsView teams={teams} HOLES={HOLES} getSkin={getSkin} formatToPar={formatToPar} />}
-              {adminTab === "messages" && <MessageBoard messages={messages} setMessages={setMessages} currentUser={currentUser} onRefresh={() => syncFromFirebase()} />}
-              {adminTab === "competitions" && <CompetitionsView teams={teams} notes={notes} HOLES={HOLES} />}
+          <div style={{marginTop:8}}>
+            <TabBar tabs={["leaderboard","skins","competitions","messages"]} />
+            <div style={{paddingTop:16}}>
+              {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} highlightTeamId={myTeam.id} />}
+              {adminTab==="skins"        && <SkinsView {...skinsProps} />}
+              {adminTab==="competitions" && <CompetitionsView {...compProps} />}
+              {adminTab==="messages"     && <MessageBoard {...msgProps} />}
             </div>
           </div>
         </div>
@@ -762,75 +531,119 @@ function JVIApp() {
   );
 }
 
-// ── Teams Tab ─────────────────────────────────────────────────────────────────
-function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, setNewTeamName, newPlayers, setNewPlayers, newScorer, setNewScorer, addTeam, removeTeam }) {
-  const [confirmRemove, setConfirmRemove] = useState(null);
-  const inp = { width: "100%", padding: "13px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none" };
+// ── Login Card ────────────────────────────────────────────────────────────────
+function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginError, setLoginError, handleLogin, onViewer }) {
+  const [userType, setUserType] = useState(null);
+  const types = [
+    { key:"player",  icon:"👀", label:"Player",  desc:"View leaderboard, skins & message board" },
+    { key:"captain", icon:"⛳", label:"Captain", desc:"Enter scores for your team + view everything" },
+    { key:"admin",   icon:"⚙️", label:"Admin",   desc:"Full access — manage teams, scores & settings" },
+  ];
+  const handleContinue = () => {
+    setLoginError("");
+    if (!userType) { setLoginError("Please select who you are."); return; }
+    if (userType === "player") {
+      if (!playerName.trim()) { setLoginError("Please enter your name."); return; }
+      onViewer(playerName.trim()); return;
+    }
+    handleLogin(userType);
+  };
+  return (
+    <div className="glass" style={{borderRadius:20,padding:"24px 22px"}}>
+      <div style={{fontSize:22,fontWeight:700,letterSpacing:"-0.4px",fontFamily:T.font,marginBottom:4}}>Welcome</div>
+      <div style={{fontSize:15,color:T.label,fontFamily:T.font,marginBottom:20}}>Select who you are to get started.</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:20}}>
+        {types.map(({key,icon,label,desc})=>(
+          <div key={key} onClick={()=>{setUserType(key);setLoginError("");}}
+            style={{background:userType===key?T.green:"rgba(28,61,42,0.05)",border:`2px solid ${userType===key?T.green:"rgba(28,61,42,0.12)"}`,borderRadius:14,padding:"12px 8px",textAlign:"center",cursor:"pointer",transition:"all 0.15s"}}>
+            <div style={{fontSize:22,marginBottom:6}}>{icon}</div>
+            <div style={{fontFamily:T.font,fontSize:13,fontWeight:700,color:userType===key?"#fff":T.green,marginBottom:4}}>{label}</div>
+            <div style={{fontFamily:T.font,fontSize:10,color:userType===key?"rgba(255,255,255,0.8)":T.label,lineHeight:1.3}}>{desc}</div>
+          </div>
+        ))}
+      </div>
+      {(userType==="player"||userType==="captain") && (
+        <div style={{marginBottom:14}}>
+          <div className="section-label">{userType==="captain"?"Captain name":"Your name"}</div>
+          <input className="jvi-input" value={playerName} onChange={e=>setPlayerName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleContinue()} placeholder="Enter your full name" />
+        </div>
+      )}
+      {userType==="admin" && (
+        <div style={{marginBottom:14}}>
+          <div className="section-label">Admin PIN</div>
+          <input className="jvi-input" type="password" value={adminPin} onChange={e=>setAdminPin(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleContinue()} placeholder="••••" />
+        </div>
+      )}
+      {loginError && <div style={{background:"rgba(255,59,48,0.08)",border:"1px solid rgba(255,59,48,0.2)",borderRadius:12,padding:"12px 14px",color:T.red,fontSize:14,fontFamily:T.font,marginBottom:14}}>{loginError}</div>}
+      <button className="btn-primary" onClick={handleContinue} style={{opacity:userType?1:0.4}}>
+        {userType==="player"?"View Outing":userType==="captain"?"Sign In as Captain":userType==="admin"?"Sign In as Admin":"Continue"}
+      </button>
+    </div>
+  );
+}
 
+// ── Teams Tab ─────────────────────────────────────────────────────────────────
+function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, setNewTeamName, newPlayers, setNewPlayers, addTeam, removeTeam }) {
+  const [confirmRemove, setConfirmRemove] = useState(null);
+  const inp = { width:"100%", padding:"13px 14px", borderRadius:12, border:"1px solid rgba(118,118,128,0.2)", background:"rgba(118,118,128,0.06)", fontFamily:T.font, fontSize:15, color:"#000", outline:"none" };
   return (
     <div>
       {editTeam && (
-        <div className="glass" style={{ borderRadius: 18, padding: "20px", marginBottom: 20 }}>
-          <div style={{ fontFamily: T.font, fontSize: 17, fontWeight: 700, marginBottom: 14 }}>Edit team</div>
-          <input value={editTeam.name} onChange={e => setEditTeam(p => ({ ...p, name: e.target.value }))} placeholder="Team name" style={{ ...inp, marginBottom: 12 }} />
-          {editTeam.players.map((p, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <input value={p} onChange={e => setEditTeam(prev => { const pl=[...prev.players]; pl[i]=e.target.value; return {...prev,players:pl}; })}
-                placeholder={i === 0 ? "Captain (score entry)" : `Player ${i + 1} (optional)`} style={inp} />
-
+        <div className="glass" style={{borderRadius:18,padding:"20px",marginBottom:20}}>
+          <div style={{fontFamily:T.font,fontSize:17,fontWeight:700,marginBottom:14}}>Edit team</div>
+          <input value={editTeam.name} onChange={e=>setEditTeam(p=>({...p,name:e.target.value}))} placeholder="Team name" style={{...inp,marginBottom:12}} />
+          {(editTeam.players||[]).map((p,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <input value={p} onChange={e=>setEditTeam(prev=>{const pl=[...prev.players];pl[i]=e.target.value;return{...prev,players:pl};})}
+                placeholder={i===0?"Captain (score entry)":`Player ${i+1} (optional)`} style={inp} />
             </div>
           ))}
-          <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+          <div style={{display:"flex",gap:10,marginTop:6}}>
             <button className="btn-sm" onClick={saveEditTeam}>Save changes</button>
-            <button className="btn-ghost" onClick={() => setEditTeam(null)}>Cancel</button>
+            <button className="btn-ghost" onClick={()=>setEditTeam(null)}>Cancel</button>
           </div>
         </div>
       )}
-
-      <div className="glass" style={{ borderRadius: 18, padding: "20px", marginBottom: 24 }}>
-        <div style={{ fontFamily: T.font, fontSize: 17, fontWeight: 700, marginBottom: 14 }}>Add a team</div>
-        <input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Team name" style={{ ...inp, marginBottom: 12 }} />
-        {newPlayers.map((p, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <input value={p} onChange={e => setNewPlayers(prev => { const np=[...prev]; np[i]=e.target.value; return np; })}
-              placeholder={i === 0 ? "Captain (score entry)" : `Player ${i + 1} (optional)`} style={inp} />
-
+      <div className="glass" style={{borderRadius:18,padding:"20px",marginBottom:24}}>
+        <div style={{fontFamily:T.font,fontSize:17,fontWeight:700,marginBottom:14}}>Add a team</div>
+        <input value={newTeamName} onChange={e=>setNewTeamName(e.target.value)} placeholder="Team name" style={{...inp,marginBottom:12}} />
+        {newPlayers.map((p,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <input value={p} onChange={e=>setNewPlayers(prev=>{const np=[...prev];np[i]=e.target.value;return np;})}
+              placeholder={i===0?"Captain (score entry)":`Player ${i+1} (optional)`} style={inp} />
           </div>
         ))}
-        <button className="btn-sm" style={{ marginTop: 6 }} onClick={addTeam}>Add team</button>
+        <button className="btn-sm" style={{marginTop:6}} onClick={addTeam}>+ Add team</button>
       </div>
-
-      {teams.length === 0
-        ? <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet. Add your first team above.</div>
-        : <div style={{ display: "grid", gap: 10 }}>
-            {teams.map(team => (
-              <div className="glass" key={team.id} style={{ borderRadius: 16, padding: "16px 18px" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+      {(teams||[]).length===0
+        ? <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"32px 0"}}>No teams yet. Add your first team above.</div>
+        : <div style={{display:"grid",gap:10}}>
+            {(teams||[]).map(team=>(
+              <div className="glass" key={team.id} style={{borderRadius:16,padding:"16px 18px"}}>
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10}}>
                   <div>
-                    <div style={{ fontFamily: T.font, fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{team.name}</div>
-                    <div style={{ display: "inline-block", background: "rgba(52,199,89,0.12)", borderRadius: 6, padding: "3px 9px", fontFamily: T.font, fontSize: 12, fontWeight: 600, color: T.green }}>
-                      Scorer: {team.players[team.scorerIndex]}
-                    </div>
+                    <div style={{fontFamily:T.font,fontSize:16,fontWeight:700,marginBottom:4}}>{team.name}</div>
+                    <div style={{display:"inline-block",background:"rgba(52,199,89,0.12)",borderRadius:6,padding:"3px 9px",fontFamily:T.font,fontSize:12,fontWeight:600,color:T.green}}>Captain: {team.players[0]}</div>
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" style={{ padding: "6px 14px", fontSize: 13 }} onClick={() => { const p=[...team.players]; while(p.length<4)p.push(""); setEditTeam({...team,players:p}); }}>Edit</button>
-                    <button className="btn-danger" onClick={() => setConfirmRemove(team.id)}>Remove</button>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="btn-ghost" style={{padding:"6px 14px",fontSize:13}} onClick={()=>{const p=[...team.players];while(p.length<4)p.push("");setEditTeam({...team,players:p});}}>Edit</button>
+                    <button className="btn-danger" onClick={()=>setConfirmRemove(team.id)}>Remove</button>
                   </div>
-                  {confirmRemove === team.id && (
-                    <div style={{ marginTop: 12, background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 10, padding: "12px 14px" }}>
-                      <div style={{ fontFamily: T.font, fontSize: 14, color: T.red, marginBottom: 10 }}>Remove <strong>{team.name}</strong>? This cannot be undone.</div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button className="btn-sm" style={{ background: T.red }} onClick={() => { removeTeam(team.id); setConfirmRemove(null); }}>Yes, remove</button>
-                        <button onClick={() => setConfirmRemove(null)} style={{ padding: "8px 16px", background: "#fff", color: "#000", border: "1px solid rgba(0,0,0,0.15)", borderRadius: 10, fontFamily: T.font, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-                      </div>
-                    </div>
-                  )}
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px" }}>
-                  {team.players.map((p, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 14, color: T.label }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: i === team.scorerIndex ? T.greenAccent : "rgba(118,118,128,0.3)" }} />
-                      {p}
+                {confirmRemove===team.id && (
+                  <div style={{marginTop:12,background:"rgba(255,59,48,0.08)",border:"1px solid rgba(255,59,48,0.2)",borderRadius:10,padding:"12px 14px"}}>
+                    <div style={{fontFamily:T.font,fontSize:14,color:T.red,marginBottom:10}}>Remove <strong>{team.name}</strong>? This cannot be undone.</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button className="btn-sm" style={{background:T.red}} onClick={()=>{removeTeam(team.id);setConfirmRemove(null);}}>Yes, remove</button>
+                      <button onClick={()=>setConfirmRemove(null)} style={{padding:"8px 16px",background:"#fff",color:"#000",border:"1px solid rgba(0,0,0,0.15)",borderRadius:10,fontFamily:T.font,fontSize:14,fontWeight:600,cursor:"pointer"}}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                <div style={{display:"flex",flexWrap:"wrap",gap:"6px 20px",marginTop:8}}>
+                  {(team.players||[]).map((p,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:6,fontFamily:T.font,fontSize:14,color:T.label}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:i===0?T.greenAccent:"rgba(118,118,128,0.3)"}}/>
+                      {p}{i===0&&<span style={{fontSize:11,color:T.green,fontWeight:600}}> · captain</span>}
                     </div>
                   ))}
                 </div>
@@ -842,63 +655,61 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
 }
 
 // ── Admin Scoring Tab ─────────────────────────────────────────────────────────
-function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHole, setSelectedHole, HOLES, getSkin, formatToPar, showToast, scoreInput, setScoreInput, noteInput, setNoteInput }) {
-  const adminSave = (teamId) => {
-    const key = `${teamId}_${selectedHole}`;
-    if (scoreInput[key] !== undefined && !isNaN(parseInt(scoreInput[key])) && parseInt(scoreInput[key]) > 0)
-      setScores(prev => ({ ...prev, [key]: parseInt(scoreInput[key]) }));
-    if (noteInput[key] !== undefined) setNotes(prev => ({ ...prev, [key]: noteInput[key] }));
-    showToast("Saved!");
-  };
-  const h = HOLES[selectedHole - 1];
+function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHole, setSelectedHole, getSkin, formatToPar, showToast, scoreInput, setScoreInput, noteInput, setNoteInput }) {
+  const h = HOLES[selectedHole-1];
   const skin = getSkin(selectedHole);
-
+  const inp = { width:"100%", padding:"12px 14px", borderRadius:12, border:"1px solid rgba(118,118,128,0.2)", background:"rgba(118,118,128,0.06)", fontFamily:T.font, fontSize:15, color:"#000", outline:"none" };
   return (
     <div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-        {HOLES.map(ho => {
-          const allDone  = teams.length > 0 && teams.every(t => scores[`${t.id}_${ho.hole}`]);
-          const someDone = teams.some(t => scores[`${t.id}_${ho.hole}`]);
-          const cls = selectedHole === ho.hole ? "selected" : allDone ? "done" : someDone ? "partial" : "empty";
-          return <div key={ho.hole} className={`hole-pill ${cls}`} onClick={() => setSelectedHole(ho.hole)}>{ho.hole}</div>;
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:20}}>
+        {HOLES.map(ho=>{
+          const allDone=(teams||[]).length>0&&(teams||[]).every(t=>scores[`${t.id}_${ho.hole}`]);
+          const someDone=(teams||[]).some(t=>scores[`${t.id}_${ho.hole}`]);
+          const cls=selectedHole===ho.hole?"selected":allDone?"done":someDone?"partial":"empty";
+          return <div key={ho.hole} className={`hole-pill ${cls}`} onClick={()=>setSelectedHole(ho.hole)}>{ho.hole}</div>;
         })}
       </div>
-
-      <div className="glass" style={{ borderRadius: 18, padding: "18px 20px", marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: skin ? 10 : 0 }}>
-          <span style={{ fontFamily: T.font, fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px" }}>Hole {selectedHole}</span>
-          <span style={{ fontFamily: T.font, fontSize: 14, color: T.label }}>Par {h.par} · {h.yards} yards · Hdcp {h.handicap}</span>
+      <div className="glass" style={{borderRadius:18,padding:"18px 20px",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"baseline",gap:16,marginBottom:skin?10:0}}>
+          <span style={{fontFamily:T.font,fontSize:24,fontWeight:800,letterSpacing:"-0.5px"}}>Hole {selectedHole}</span>
+          <span style={{fontFamily:T.font,fontSize:14,color:T.label}}>Par {h.par} · {h.yards} yards · Hdcp {h.handicap}</span>
         </div>
         {skin && (
-          <div style={{ display: "inline-block", background: skin.tie ? "rgba(255,149,0,0.1)" : "rgba(52,199,89,0.1)", border: `1px solid ${skin.tie ? "rgba(255,149,0,0.3)" : "rgba(52,199,89,0.3)"}`, borderRadius: 10, padding: "5px 12px", fontFamily: T.font, fontSize: 12, fontWeight: 600, color: skin.tie ? T.amber : T.green }}>
-            {skin.tie ? "Tied — no skin" : `Skin → ${skin.team.name} (${skin.score}, ${formatToPar(skin.toPar)})`}
+          <div style={{display:"inline-block",background:skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"5px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.tie?T.amber:T.green}}>
+            {skin.tie?"Tied — no skin":`Skin → ${skin.team.name} (${skin.score}, ${formatToPar(skin.toPar)})`}
           </div>
         )}
       </div>
-
-      <div style={{ display: "grid", gap: 12 }}>
-        {teams.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "24px 0" }}>Add teams first.</div>}
-        {teams.map(team => {
-          const key = `${team.id}_${selectedHole}`, saved = scores[key];
+      <div style={{display:"grid",gap:12}}>
+        {(teams||[]).length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"24px 0"}}>Add teams first.</div>}
+        {(teams||[]).map(team=>{
+          const key=`${team.id}_${selectedHole}`, saved=scores[key];
           return (
-            <div className="glass" key={team.id} style={{ borderRadius: 16, padding: "16px 18px" }}>
-              <div style={{ fontFamily: T.font, fontSize: 16, fontWeight: 700, marginBottom: 12 }}>{team.name}</div>
-              <div style={{ marginBottom: 12 }}>
+            <div className="glass" key={team.id} style={{borderRadius:16,padding:"16px 18px"}}>
+              <div style={{fontFamily:T.font,fontSize:16,fontWeight:700,marginBottom:12}}>{team.name}</div>
+              <div style={{marginBottom:12}}>
                 <div className="section-label">Score</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
                   <div className="score-box">
-                    <input className="score-input" type="number" min={1} max={20} key={`adm_${key}`}
-                      defaultValue={saved || ""} placeholder="—"
-                      onChange={e => setScoreInput(prev => ({ ...prev, [key]: e.target.value }))} />
+                    <input className="score-input" type="number" min={1} max={20} key={`adm_${key}`} defaultValue={saved||""} placeholder="—" onChange={e=>setScoreInput(prev=>({...prev,[key]:e.target.value}))} />
                   </div>
-                  <button className="btn-sm" onClick={() => adminSave(team.id)}>Save</button>
-                  {saved && <span style={{ fontFamily: T.font, fontSize: 14, color: T.greenAccent, fontWeight: 600 }}>✓ {saved}</span>}
+                  <button className="btn-sm" onClick={()=>{
+                    const val=scoreInput[key];
+                    if(!val||isNaN(parseInt(val))||parseInt(val)<1){showToast("Enter a valid score","error");return;}
+                    setScores(prev=>({...(prev||{}),[key]:parseInt(val)}));
+                    showToast("Score saved!");
+                  }}>Save</button>
+                  {saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved}</span>}
                 </div>
               </div>
               <div>
                 <div className="section-label">Notes</div>
-                <input key={`admn_${key}`} defaultValue={notes[key] || ""} onChange={e => setNoteInput(prev => ({ ...prev, [key]: e.target.value }))} placeholder="Optional"
-                  style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none" }} />
+                <input key={`admn_${key}`} defaultValue={notes[key]||""} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc." style={{...inp,marginBottom:10}} />
+                <button className="btn-sm" onClick={()=>{
+                  const note=noteInput[key]!==undefined?noteInput[key]:(notes[key]||"");
+                  setNotes(prev=>({...(prev||{}),[key]:note}));
+                  showToast("Note saved!");
+                }}>Save note</button>
               </div>
             </div>
           );
@@ -913,119 +724,116 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
   const [expanded, setExpanded] = useState(null);
   return (
     <div>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4, color: "#FFD700" }}>Leaderboard</div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-        <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Tap any row to expand</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(255,255,255,0.1)", borderRadius: 20, padding: "5px 12px" }}>
-          <span style={{ background: "linear-gradient(135deg,#FFD700,#FFA500)", borderRadius: 5, width: 22, height: 22, display: "inline-block" }}></span>
-          <span style={{ fontFamily: T.font, fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>= Skin winner</span>
+      <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#FFD700",marginBottom:4}}>Leaderboard</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:16}}>
+        <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)"}}>Tap any row to expand</div>
+        <div style={{display:"flex",alignItems:"center",gap:7,background:"rgba(255,255,255,0.1)",borderRadius:20,padding:"5px 12px"}}>
+          <span style={{background:"linear-gradient(135deg,#FFD700,#FFA500)",borderRadius:5,width:22,height:22,display:"inline-block"}}></span>
+          <span style={{fontFamily:T.font,fontSize:12,color:"rgba(255,255,255,0.85)",fontWeight:500}}>= Skin winner</span>
         </div>
       </div>
-      {teams.length === 0 && <div style={{ textAlign: "center", color: "rgba(255,255,255,0.8)", fontFamily: T.font, fontSize: 15, padding: "32px 0" }}>No teams yet.</div>}
-      <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        <div style={{ overflowX: "auto" }}>
+      {(teams||[]).length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"32px 0"}}>No teams yet.</div>}
+      <div style={{borderRadius:16,overflow:"hidden",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+        <div style={{overflowX:"auto"}}>
           <table className="lb-table">
             <thead>
               <tr>
                 <th className="left"></th>
-                {HOLES.slice(0,9).map(h => <th key={h.hole}>{h.hole}</th>)}
+                {HOLES.slice(0,9).map(h=><th key={h.hole}>{h.hole}</th>)}
                 <th>Out</th>
-                {HOLES.slice(9,18).map(h => <th key={h.hole}>{h.hole}</th>)}
+                {HOLES.slice(9,18).map(h=><th key={h.hole}>{h.hole}</th>)}
                 <th>In</th><th>Tot</th><th>+/-</th>
               </tr>
               <tr className="meta-row">
                 <td className="left">Hdcp</td>
-                {HOLES.slice(0,9).map(h => <td key={h.hole}>{h.handicap}</td>)}
+                {HOLES.slice(0,9).map(h=><td key={h.hole}>{h.handicap}</td>)}
                 <td></td>
-                {HOLES.slice(9,18).map(h => <td key={h.hole}>{h.handicap}</td>)}
+                {HOLES.slice(9,18).map(h=><td key={h.hole}>{h.handicap}</td>)}
                 <td></td><td></td><td></td>
               </tr>
               <tr className="meta-row">
                 <td className="left">Yards</td>
-                {HOLES.slice(0,9).map(h => <td key={h.hole}>{h.yards}</td>)}
-                <td style={{ fontWeight: 700 }}>{frontYds}</td>
-                {HOLES.slice(9,18).map(h => <td key={h.hole}>{h.yards}</td>)}
-                <td style={{ fontWeight: 700 }}>{backYds}</td>
-                <td style={{ fontWeight: 700 }}>{frontYds+backYds}</td><td></td>
+                {HOLES.slice(0,9).map(h=><td key={h.hole}>{h.yards}</td>)}
+                <td style={{fontWeight:700}}>{frontYds}</td>
+                {HOLES.slice(9,18).map(h=><td key={h.hole}>{h.yards}</td>)}
+                <td style={{fontWeight:700}}>{backYds}</td>
+                <td style={{fontWeight:700}}>{frontYds+backYds}</td><td></td>
               </tr>
               <tr className="meta-row">
                 <td className="left">Par</td>
-                {HOLES.slice(0,9).map(h => <td key={h.hole}>{h.par}</td>)}
-                <td style={{ fontWeight: 700 }}>{frontPar}</td>
-                {HOLES.slice(9,18).map(h => <td key={h.hole}>{h.par}</td>)}
-                <td style={{ fontWeight: 700 }}>{backPar}</td>
-                <td style={{ fontWeight: 700 }}>{frontPar+backPar}</td><td></td>
+                {HOLES.slice(0,9).map(h=><td key={h.hole}>{h.par}</td>)}
+                <td style={{fontWeight:700}}>{frontPar}</td>
+                {HOLES.slice(9,18).map(h=><td key={h.hole}>{h.par}</td>)}
+                <td style={{fontWeight:700}}>{backPar}</td>
+                <td style={{fontWeight:700}}>{frontPar+backPar}</td><td></td>
               </tr>
             </thead>
             <tbody>
-              {teams.map((team, idx) => {
-                const toPar = getTeamToPar(team), played = getHolesPlayed(team);
-                const ft = HOLES.slice(0,9).reduce((a,h) => a+(scores[`${team.id}_${h.hole}`]||0), 0);
-                const bt = HOLES.slice(9,18).reduce((a,h) => a+(scores[`${team.id}_${h.hole}`]||0), 0);
-                const isOpen = expanded === team.id;
-                const ScoreCell = ({ h }) => {
-                  const s = scores[`${team.id}_${h.hole}`];
-                  const skin = getSkin(h.hole);
-                  const wonSkin = skin && !skin.tie && skin.team && skin.team.id === team.id;
-                  const diff = s ? s - h.par : null;
-                  if (!s) return <td><span style={{ color: "rgba(60,60,67,0.2)" }}>—</span></td>;
-                  // Build score symbol style based on diff
-                  let symStyle = { display:"inline-flex", alignItems:"center", justifyContent:"center",
-                    width:24, height:24, fontWeight:700, fontSize:12, color:"#000", fontFamily:T.font };
-                  if (diff <= -2) symStyle = { ...symStyle, borderRadius:"50%", border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
-                  else if (diff === -1) symStyle = { ...symStyle, borderRadius:"50%", border:"1.5px solid #000" };
-                  else if (diff === 1) symStyle = { ...symStyle, borderRadius:2, border:"1.5px solid #000" };
-                  else if (diff === 2) symStyle = { ...symStyle, borderRadius:2, border:"1.5px solid #000", outline:"1.5px solid #000", outlineOffset:"2px" };
-                  else if (diff >= 3) symStyle = { ...symStyle, borderRadius:2, border:"2px solid #000", outline:"2px solid #000", outlineOffset:"2px" };
-                  // If skin winner — wrap in gold background, keep score symbol
-                  if (wonSkin) {
-                    return (
-                      <td style={{ padding: "2px 3px" }}>
-                        <div style={{ background:"linear-gradient(135deg,#FFD700,#FFA500)", borderRadius:7, padding:"2px 3px", display:"inline-flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 3px rgba(255,165,0,0.4)" }}>
-                          <span style={{ ...symStyle, color:"#5C3A00", border: symStyle.border ? symStyle.border.replace("#000","#5C3A00") : undefined, outline: symStyle.outline ? symStyle.outline.replace("#000","#5C3A00") : undefined }}>{s}</span>
-                        </div>
-                      </td>
-                    );
+              {(teams||[]).map((team,idx)=>{
+                const toPar=getTeamToPar(team), played=getHolesPlayed(team);
+                const ft=HOLES.slice(0,9).reduce((a,h)=>a+(scores[`${team.id}_${h.hole}`]||0),0);
+                const bt=HOLES.slice(9,18).reduce((a,h)=>a+(scores[`${team.id}_${h.hole}`]||0),0);
+                const isOpen=expanded===team.id;
+                const ScoreCell = ({h}) => {
+                  const s=scores[`${team.id}_${h.hole}`];
+                  const skin=getSkin(h.hole);
+                  const wonSkin=skin&&!skin.tie&&skin.team&&skin.team.id===team.id;
+                  const diff=s?s-h.par:null;
+                  if(!s) return <td><span style={{color:"rgba(60,60,67,0.2)"}}>—</span></td>;
+                  if(wonSkin) {
+                    let symStyle={display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:24,fontWeight:700,fontSize:12,color:"#5C3A00",fontFamily:T.font};
+                    if(diff<=-2) symStyle={...symStyle,borderRadius:"50%",border:"2px solid #5C3A00",outline:"2px solid #5C3A00",outlineOffset:"2px"};
+                    else if(diff===-1) symStyle={...symStyle,borderRadius:"50%",border:"1.5px solid #5C3A00"};
+                    else if(diff===1) symStyle={...symStyle,borderRadius:2,border:"1.5px solid #5C3A00"};
+                    else if(diff===2) symStyle={...symStyle,borderRadius:2,border:"1.5px solid #5C3A00",outline:"1.5px solid #5C3A00",outlineOffset:"2px"};
+                    else if(diff>=3) symStyle={...symStyle,borderRadius:2,border:"2px solid #5C3A00",outline:"2px solid #5C3A00",outlineOffset:"2px"};
+                    return <td style={{padding:"2px 3px"}}><div style={{background:"linear-gradient(135deg,#FFD700,#FFA500)",borderRadius:7,padding:"2px 3px",display:"inline-flex",alignItems:"center",justifyContent:"center",boxShadow:"0 1px 3px rgba(255,165,0,0.4)"}}><span style={symStyle}>{s}</span></div></td>;
                   }
-                  return <td style={{ padding: "4px 3px" }}><span style={symStyle}>{s}</span></td>;
+                  let style={display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:24,fontWeight:600,fontSize:12,color:"#000",fontFamily:T.font};
+                  if(diff<=-2) style={...style,borderRadius:"50%",border:"2px solid #000",outline:"2px solid #000",outlineOffset:"2px"};
+                  else if(diff===-1) style={...style,borderRadius:"50%",border:"1.5px solid #000"};
+                  else if(diff===1) style={...style,borderRadius:2,border:"1.5px solid #000"};
+                  else if(diff===2) style={...style,borderRadius:2,border:"1.5px solid #000",outline:"1.5px solid #000",outlineOffset:"2px"};
+                  else if(diff>=3) style={...style,borderRadius:2,border:"2px solid #000",outline:"2px solid #000",outlineOffset:"2px"};
+                  return <td style={{padding:"4px 3px"}}><span style={style}>{s}</span></td>;
                 };
                 return (
                   <React.Fragment key={team.id}>
-                    <tr className={`team-row${highlightTeamId === team.id ? " highlight" : ""}`} onClick={() => setExpanded(isOpen ? null : team.id)}
-                      style={{ borderLeft: `3px solid ${highlightTeamId === team.id ? T.greenAccent : "transparent"}` }}>
-                      <td className="left" style={{ fontWeight: 700 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ width: 22, height: 22, borderRadius: "50%", background: idx === 0 && played > 0 ? T.green : "rgba(118,118,128,0.12)", color: idx === 0 && played > 0 ? "#fff" : T.label, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{idx+1}</span>
+                    <tr className={"team-row"+(highlightTeamId===team.id?" highlight":"")} onClick={()=>setExpanded(isOpen?null:team.id)}
+                      style={{background:highlightTeamId===team.id?"rgba(52,199,89,0.07)":"",borderLeft:`3px solid ${highlightTeamId===team.id?T.greenAccent:"transparent"}`}}>
+                      <td className="left" style={{fontWeight:700}}>
+                        <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
+                          <span style={{width:22,height:22,borderRadius:"50%",background:idx===0&&played>0?T.green:"rgba(118,118,128,0.12)",color:idx===0&&played>0?"#fff":T.label,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{idx+1}</span>
                           {team.name}
-                          <span style={{ fontSize: 10, color: T.label, fontWeight: 400 }}>{isOpen ? "▲" : "▼"}</span>
+                          <span style={{fontSize:10,color:T.label,fontWeight:400}}>{isOpen?"▲":"▼"}</span>
                         </span>
                       </td>
-                      {HOLES.slice(0,9).map(h => <ScoreCell key={h.hole} h={h} />)}
-                      <td className="subtotal">{ft > 0 ? ft : "—"}</td>
-                      {HOLES.slice(9,18).map(h => <ScoreCell key={h.hole} h={h} />)}
-                      <td className="subtotal">{bt > 0 ? bt : "—"}</td>
-                      <td className="subtotal">{played > 0 ? getTeamTotal(team) : "—"}</td>
-                      <td className="subtotal" style={{ color: played > 0 ? toParColor(toPar) : T.label, fontSize: 14 }}>{played > 0 ? formatToPar(toPar) : "—"}</td>
+                      {HOLES.slice(0,9).map(h=><ScoreCell key={h.hole} h={h}/>)}
+                      <td className="subtotal">{ft>0?ft:"—"}</td>
+                      {HOLES.slice(9,18).map(h=><ScoreCell key={h.hole} h={h}/>)}
+                      <td className="subtotal">{bt>0?bt:"—"}</td>
+                      <td className="subtotal">{played>0?getTeamTotal(team):"—"}</td>
+                      <td className="subtotal" style={{color:played>0?toParColor(toPar):T.label,fontSize:14}}>{played>0?formatToPar(toPar):"—"}</td>
                     </tr>
                     {isOpen && (
                       <tr>
-                        <td colSpan={23} style={{ padding: 0, borderBottom: `1px solid ${T.sep}` }}>
-                          <div style={{ padding: "14px 16px", background: "rgba(52,199,89,0.05)" }}>
-                            <div className="section-label" style={{ color: T.green, marginBottom: 8 }}>Roster</div>
-                            <div style={{ display: "flex", gap: "8px 24px", flexWrap: "wrap", marginBottom: 10 }}>
-                              {team.players.map((p, i) => (
-                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: T.font, fontSize: 14, color: "#000" }}>
-                                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === team.scorerIndex ? T.greenAccent : "rgba(118,118,128,0.3)", flexShrink: 0 }} />
-                                  {p}{i === 0 && <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}> · captain</span>}
+                        <td colSpan={23} style={{padding:0,borderBottom:`1px solid ${T.sep}`}}>
+                          <div style={{padding:"14px 16px",background:"rgba(52,199,89,0.05)"}}>
+                            <div style={{fontFamily:T.font,fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.green,marginBottom:8}}>Roster</div>
+                            <div style={{display:"flex",gap:"8px 24px",flexWrap:"wrap",marginBottom:10}}>
+                              {(team.players||[]).map((p,i)=>(
+                                <div key={i} style={{display:"flex",alignItems:"center",gap:7,fontFamily:T.font,fontSize:14,color:"#000"}}>
+                                  <div style={{width:7,height:7,borderRadius:"50%",background:i===0?T.greenAccent:"rgba(118,118,128,0.3)",flexShrink:0}}/>
+                                  {p}{i===0&&<span style={{fontSize:11,color:T.green,fontWeight:600}}> · captain</span>}
                                 </div>
                               ))}
                             </div>
-                            {HOLES.some(h => notes[`${team.id}_${h.hole}`]) && (
+                            {HOLES.some(h=>notes[`${team.id}_${h.hole}`]) && (
                               <div>
-                                <div className="section-label" style={{ color: T.green, marginBottom: 6 }}>Notes</div>
-                                {HOLES.filter(h => notes[`${team.id}_${h.hole}`]).map(h => (
-                                  <div key={h.hole} style={{ fontFamily: T.font, fontSize: 13, color: T.label, marginBottom: 3 }}>
-                                    <span style={{ fontWeight: 600, color: "#000" }}>Hole {h.hole}:</span> {notes[`${team.id}_${h.hole}`]}
+                                <div style={{fontFamily:T.font,fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.green,marginBottom:6}}>Notes</div>
+                                {HOLES.filter(h=>notes[`${team.id}_${h.hole}`]).map(h=>(
+                                  <div key={h.hole} style={{fontFamily:T.font,fontSize:13,color:T.label,marginBottom:3}}>
+                                    <span style={{fontWeight:600,color:"#000"}}>Hole {h.hole}:</span> {notes[`${team.id}_${h.hole}`]}
                                   </div>
                                 ))}
                               </div>
@@ -1048,45 +856,40 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
 // ── Skins ─────────────────────────────────────────────────────────────────────
 function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
-  const skins  = HOLES.map(h => ({ hole: h, skin: getSkin(h.hole) }));
-  const wonSkins = skins.filter(({ skin }) => skin && !skin.tie && skin.team);
+  const skins = HOLES.map(h=>({hole:h,skin:getSkin(h.hole)}));
   const counts = {};
-  teams.forEach(t => { counts[t.id] = { team: t, count: 0 }; });
-  skins.forEach(({ skin }) => { if (skin && !skin.tie && skin.team) counts[skin.team.id].count++; });
-
+  (teams||[]).forEach(t=>{counts[t.id]={team:t,count:0};});
+  skins.forEach(({skin})=>{if(skin&&!skin.tie&&skin.team)counts[skin.team.id].count++;});
+  const wonSkins = skins.filter(({skin})=>skin&&!skin.tie&&skin.team);
   return (
     <div>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4, color: "#fff" }}>Skins</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 20 }}>Resolves once all teams complete a hole.</div>
-
-      {/* ── Top section: team skin counts, expandable ── */}
-      {Object.values(counts).length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "60px 1fr", background: T.green, borderRadius: "10px 10px 0 0", padding: "8px 18px", marginBottom: 0 }}>
-            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)" }}>Skins</div>
-            <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)" }}>Team</div>
+      <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#fff",marginBottom:4}}>Skins</div>
+      <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:20}}>Resolves once all teams complete a hole.</div>
+      {Object.values(counts).length>0 && (
+        <div style={{marginBottom:28}}>
+          <div style={{display:"grid",gridTemplateColumns:"60px 1fr",background:T.green,borderRadius:"10px 10px 0 0",padding:"8px 18px"}}>
+            <div style={{fontFamily:T.font,fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:"rgba(255,255,255,0.85)"}}>Skins</div>
+            <div style={{fontFamily:T.font,fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:"rgba(255,255,255,0.85)"}}>Team</div>
           </div>
-          <div style={{ display: "grid", gap: 0, borderRadius: "0 0 14px 14px", overflow: "hidden" }}>
-            {Object.values(counts).sort((a,b) => b.count - a.count).map(({ team, count }, idx, arr) => {
-              const isOpen = expandedTeam === team.id;
+          <div style={{borderRadius:"0 0 14px 14px",overflow:"hidden"}}>
+            {Object.values(counts).sort((a,b)=>b.count-a.count).map(({team,count},idx,arr)=>{
+              const isOpen=expandedTeam===team.id;
               return (
-                <div key={team.id} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${T.sep}` : "none" }}>
-                  <div className="glass" onClick={() => setExpandedTeam(isOpen ? null : team.id)}
-                    style={{ borderRadius: 0, padding: "14px 18px", display: "grid", gridTemplateColumns: "60px 1fr auto", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <div style={{ fontFamily: T.font, fontSize: 14, fontWeight: 800, color: count > 0 ? "#5C3A00" : T.label, background: count > 0 ? "linear-gradient(135deg,#FFD700,#FFA500)" : "transparent", borderRadius: 8, padding: count > 0 ? "3px 10px" : "0", display: "inline-block" }}>
-                      {count > 0 ? `${count}` : "—"}
-                    </div>
-                    <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#000" }}>{team.name}</div>
-                    <span style={{ color: T.label, fontSize: 11, fontFamily: T.font }}>{isOpen ? "▲" : "▼"}</span>
+                <div key={team.id} style={{borderBottom:idx<arr.length-1?`1px solid ${T.sep}`:"none"}}>
+                  <div className="glass" onClick={()=>setExpandedTeam(isOpen?null:team.id)}
+                    style={{borderRadius:0,padding:"14px 18px",display:"grid",gridTemplateColumns:"60px 1fr auto",alignItems:"center",gap:8,cursor:"pointer"}}>
+                    <div style={{fontFamily:T.font,fontSize:14,fontWeight:800,color:count>0?"#5C3A00":T.label,background:count>0?"linear-gradient(135deg,#FFD700,#FFA500)":"transparent",borderRadius:8,padding:count>0?"3px 10px":"0",display:"inline-block"}}>{count>0?count:"—"}</div>
+                    <div style={{fontFamily:T.font,fontSize:15,fontWeight:700,color:"#000"}}>{team.name}</div>
+                    <span style={{color:T.label,fontSize:11}}>{isOpen?"▲":"▼"}</span>
                   </div>
                   {isOpen && (
-                    <div style={{ background: "#EAF5EF", border: "none", borderTop: "1px solid rgba(28,61,42,0.1)", padding: "12px 18px" }}>
-                      <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: T.green, marginBottom: 8 }}>Roster</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 20px" }}>
-                        {team.players.map((p, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: T.font, fontSize: 14, color: "#1C3D2A" }}>
-                            <div style={{ width: 7, height: 7, borderRadius: "50%", background: i === 0 ? T.greenAccent : "rgba(28,61,42,0.3)", flexShrink: 0 }} />
-                            {p}{i === 0 && <span style={{ fontSize: 11, color: T.green, fontWeight: 600 }}> · captain</span>}
+                    <div style={{background:"#EAF5EF",borderTop:`1px solid rgba(28,61,42,0.1)`,padding:"12px 18px"}}>
+                      <div style={{fontFamily:T.font,fontSize:11,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase",color:T.green,marginBottom:8}}>Roster</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:"6px 20px"}}>
+                        {(team.players||[]).map((p,i)=>(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:6,fontFamily:T.font,fontSize:14,color:"#1C3D2A"}}>
+                            <div style={{width:7,height:7,borderRadius:"50%",background:i===0?T.greenAccent:"rgba(28,61,42,0.3)",flexShrink:0}}/>
+                            {p}{i===0&&<span style={{fontSize:11,color:T.green,fontWeight:600}}> · captain</span>}
                           </div>
                         ))}
                       </div>
@@ -1098,36 +901,29 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
           </div>
         </div>
       )}
-
-      {/* ── Bottom section: hole-by-hole results with headers ── */}
-      <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>Results by Hole</div>
-      <div style={{ borderRadius: 14, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        {/* Header row */}
-        <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 80px", background: T.green, padding: "10px 16px", gap: 8 }}>
-          {["Hole", "Team", "Score"].map(h => (
-            <div key={h} style={{ fontFamily: T.font, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.85)" }}>{h}</div>
+      <div style={{fontFamily:T.font,fontSize:12,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",color:"rgba(255,255,255,0.55)",marginBottom:10}}>Results by Hole</div>
+      <div style={{borderRadius:14,overflow:"hidden",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+        <div style={{display:"grid",gridTemplateColumns:"60px 1fr 100px",background:T.green,padding:"10px 16px",gap:8}}>
+          {["Hole","Team","Score"].map(h=>(
+            <div key={h} style={{fontFamily:T.font,fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:"rgba(255,255,255,0.85)"}}>{h}</div>
           ))}
         </div>
-        {/* Rows */}
-        {skins.map(({ hole, skin }) => (
-          <div key={hole.hole} style={{ display: "grid", gridTemplateColumns: "60px 1fr 80px", padding: "12px 16px", gap: 8, borderBottom: `1px solid ${T.sep}`, opacity: skin === null ? 0.45 : 1, alignItems: "center" }}>
-            {/* Hole */}
-            <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#000" }}>
+        {skins.map(({hole,skin})=>(
+          <div key={hole.hole} style={{display:"grid",gridTemplateColumns:"60px 1fr 100px",padding:"12px 16px",gap:8,borderBottom:`1px solid ${T.sep}`,opacity:skin===null?0.45:1,alignItems:"center"}}>
+            <div style={{fontFamily:T.font,fontSize:15,fontWeight:700,color:"#000"}}>
               {hole.hole}
-              <div style={{ fontSize: 11, color: T.label, fontWeight: 400 }}>Par {hole.par}</div>
+              <div style={{fontSize:11,color:T.label,fontWeight:400}}>Par {hole.par}</div>
             </div>
-            {/* Team */}
             <div>
-              {skin === null
-                ? <span style={{ fontFamily: T.font, fontSize: 13, color: T.label }}>Pending</span>
+              {skin===null
+                ? <span style={{fontFamily:T.font,fontSize:13,color:T.label}}>Pending</span>
                 : skin.tie
-                  ? <span style={{ fontFamily: T.font, fontSize: 13, color: T.amber, fontWeight: 600 }}>Tied — no winner</span>
-                  : <span style={{ fontFamily: T.font, fontSize: 14, fontWeight: 700, color: "#000" }}>{skin.team.name}</span>}
+                  ? <span style={{fontFamily:T.font,fontSize:13,color:T.amber,fontWeight:600}}>Tied — no winner</span>
+                  : <span style={{fontFamily:T.font,fontSize:14,fontWeight:700,color:"#000"}}>{skin.team.name}</span>}
             </div>
-            {/* Score */}
             <div>
-              {skin && !skin.tie && (
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#FFD700,#FFA500)", borderRadius: 8, padding: "3px 12px", fontFamily: T.font, fontSize: 14, fontWeight: 800, color: "#5C3A00", boxShadow: "0 1px 4px rgba(255,165,0,0.4)" }}>
+              {skin&&!skin.tie&&(
+                <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#FFD700,#FFA500)",borderRadius:8,padding:"3px 12px",fontFamily:T.font,fontSize:14,fontWeight:800,color:"#5C3A00",boxShadow:"0 1px 4px rgba(255,165,0,0.4)"}}>
                   {skin.score} ({formatToPar(skin.toPar)})
                 </span>
               )}
@@ -1139,174 +935,30 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
   );
 }
 
-// ── Scorecard ─────────────────────────────────────────────────────────────────
-function ScorecardView({ HOLES, frontPar, backPar, frontYds, backYds }) {
-  const totalYds = frontYds + backYds;
-  return (
-    <div>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", marginBottom: 4 }}>Scorecard</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: T.label, marginBottom: 20 }}>
-        {COURSE.name} · White tees · Par 72 · {totalYds.toLocaleString()} yards · Rating {COURSE.rating} · Slope {COURSE.slope}
-      </div>
-      <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table className="lb-table">
-            <thead>
-              <tr>
-                <th className="left">Hole</th>
-                {HOLES.slice(0,9).map(h => <th key={h.hole}>{h.hole}</th>)}
-                <th>Out</th>
-                {HOLES.slice(9,18).map(h => <th key={h.hole}>{h.hole}</th>)}
-                <th>In</th><th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["Par", h => h.par, frontPar, backPar, frontPar+backPar],
-                ["Yards", h => h.yards, frontYds, backYds, totalYds],
-                ["Hdcp", h => h.handicap, null, null, null],
-              ].map(([label, fn, fTot, bTot, tot]) => (
-                <tr key={label} style={{ background: label === "Yards" ? "rgba(28,61,42,0.03)" : label === "Hdcp" ? "rgba(28,61,42,0.02)" : "#fff" }}>
-                  <td className="left" style={{ fontFamily: T.font, fontSize: 13, fontWeight: 600, color: T.label }}>{label}</td>
-                  {HOLES.slice(0,9).map(h => <td key={h.hole} style={{ fontFamily: T.font, fontSize: 13, color: "#000" }}>{fn(h)}</td>)}
-                  <td style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, background: "rgba(28,61,42,0.06)" }}>{fTot ?? "—"}</td>
-                  {HOLES.slice(9,18).map(h => <td key={h.hole} style={{ fontFamily: T.font, fontSize: 13, color: "#000" }}>{fn(h)}</td>)}
-                  <td style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, background: "rgba(28,61,42,0.06)" }}>{bTot ?? "—"}</td>
-                  <td style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, background: "rgba(28,61,42,0.06)" }}>{tot ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Login Card ────────────────────────────────────────────────────────────────
-function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginError, setLoginError, handleLogin }) {
-  const [userType, setUserType] = useState(null); // null | "player" | "captain" | "admin"
-
-  const userTypes = [
-    {
-      key: "player",
-      icon: "👀",
-      label: "Player",
-      desc: "View leaderboard, skins & message board",
-    },
-    {
-      key: "captain",
-      icon: "⛳",
-      label: "Captain",
-      desc: "Enter scores for your team + view everything",
-    },
-    {
-      key: "admin",
-      icon: "⚙️",
-      label: "Admin",
-      desc: "Full access — manage teams, scores & settings",
-    },
-  ];
-
-  const handleContinue = () => {
-    setLoginError("");
-    if (!userType) { setLoginError("Please select who you are."); return; }
-    handleLogin(userType);
-  };
-
-  return (
-    <div className="glass" style={{ borderRadius: 20, padding: "24px 22px" }}>
-      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px", fontFamily: T.font, marginBottom: 4 }}>Welcome</div>
-      <div style={{ fontSize: 15, color: T.label, fontFamily: T.font, marginBottom: 20 }}>Select who you are to get started.</div>
-
-      {/* User type selector */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
-        {userTypes.map(({ key, icon, label, desc }) => (
-          <div key={key} onClick={() => { setUserType(key); setLoginError(""); }}
-            style={{ background: userType === key ? T.green : "rgba(28,61,42,0.05)", border: `2px solid ${userType === key ? T.green : "rgba(28,61,42,0.12)"}`, borderRadius: 14, padding: "12px 8px", textAlign: "center", cursor: "pointer", transition: "all 0.15s" }}>
-            <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
-            <div style={{ fontFamily: T.font, fontSize: 13, fontWeight: 700, color: userType === key ? "#fff" : T.green, marginBottom: 4 }}>{label}</div>
-            <div style={{ fontFamily: T.font, fontSize: 10, color: userType === key ? "rgba(255,255,255,0.8)" : T.label, lineHeight: 1.3 }}>{desc}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Name field — shown for player and captain */}
-      {(userType === "player" || userType === "captain") && (
-        <div style={{ marginBottom: 14 }}>
-          <div className="section-label">{userType === "captain" ? "Captain name" : "Your name"}</div>
-          <input className="jvi-input" value={playerName} onChange={e => setPlayerName(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleContinue()}
-            placeholder="Enter your full name" />
-        </div>
-      )}
-
-      {/* PIN field — shown for admin only */}
-      {userType === "admin" && (
-        <div style={{ marginBottom: 14 }}>
-          <div className="section-label">Admin PIN</div>
-          <input className="jvi-input" type="password" value={adminPin} onChange={e => setAdminPin(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleContinue()} placeholder="••••" />
-        </div>
-      )}
-
-      {loginError && (
-        <div style={{ background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.2)", borderRadius: 12, padding: "12px 14px", color: T.red, fontSize: 14, fontFamily: T.font, marginBottom: 14 }}>
-          {loginError}
-        </div>
-      )}
-
-      <button className="btn-primary" onClick={handleContinue} disabled={!userType}
-        style={{ opacity: userType ? 1 : 0.4 }}>
-        {userType === "player" ? "View Outing" : userType === "captain" ? "Sign In as Captain" : userType === "admin" ? "Sign In as Admin" : "Continue"}
-      </button>
-    </div>
-  );
-}
-
-// ── Competitions View ─────────────────────────────────────────────────────────
-// Shows all hole notes grouped by hole so users can track special competitions
+// ── Competitions ──────────────────────────────────────────────────────────────
 function CompetitionsView({ teams, notes, HOLES }) {
-  // Collect all holes that have at least one note from any team
-  const holesWithNotes = HOLES.filter(h =>
-    teams.some(t => notes[`${t.id}_${h.hole}`])
-  );
-
+  const holesWithNotes = HOLES.filter(h=>(teams||[]).some(t=>notes[`${t.id}_${h.hole}`]));
   return (
     <div>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "#fff", marginBottom: 4 }}>Competitions</div>
-      <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 20 }}>
-        Special hole competitions — closest to pin, longest drive, and more.
-      </div>
-
-      {holesWithNotes.length === 0 && (
-        <div style={{ textAlign: "center", color: "rgba(255,255,255,0.6)", fontFamily: T.font, fontSize: 15, padding: "40px 0" }}>
-          No competition notes yet. Captains can add notes when entering scores.
-        </div>
+      <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#fff",marginBottom:4}}>Competitions</div>
+      <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:20}}>Special hole competitions — closest to pin, longest drive, and more.</div>
+      {holesWithNotes.length===0 && (
+        <div style={{textAlign:"center",color:"rgba(255,255,255,0.6)",fontFamily:T.font,fontSize:15,padding:"40px 0"}}>No competition notes yet. Captains can add notes when entering scores.</div>
       )}
-
-      <div style={{ display: "grid", gap: 14 }}>
-        {holesWithNotes.map(h => (
-          <div key={h.hole} style={{ borderRadius: 16, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-            {/* Hole header */}
-            <div style={{ background: T.green, padding: "10px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.font, fontSize: 16, fontWeight: 800, color: "#fff" }}>
-                {h.hole}
-              </div>
+      <div style={{display:"grid",gap:14}}>
+        {holesWithNotes.map(h=>(
+          <div key={h.hole} style={{borderRadius:16,overflow:"hidden",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+            <div style={{background:T.green,padding:"10px 18px",display:"flex",alignItems:"center",gap:14}}>
+              <div style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font,fontSize:16,fontWeight:800,color:"#fff"}}>{h.hole}</div>
               <div>
-                <div style={{ fontFamily: T.font, fontSize: 15, fontWeight: 700, color: "#fff" }}>Hole {h.hole}</div>
-                <div style={{ fontFamily: T.font, fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
+                <div style={{fontFamily:T.font,fontSize:15,fontWeight:700,color:"#fff"}}>Hole {h.hole}</div>
+                <div style={{fontFamily:T.font,fontSize:12,color:"rgba(255,255,255,0.65)"}}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
               </div>
             </div>
-            {/* Notes per team */}
-            {teams.filter(t => notes[`${t.id}_${h.hole}`]).map((team, i, arr) => (
-              <div key={team.id} style={{ padding: "12px 18px", borderBottom: i < arr.length - 1 ? `1px solid ${T.sep}` : "none" }}>
-                <div style={{ fontFamily: T.font, fontSize: 12, fontWeight: 700, color: T.green, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {team.name}
-                </div>
-                <div style={{ fontFamily: T.font, fontSize: 15, color: "#000" }}>
-                  {notes[`${team.id}_${h.hole}`]}
-                </div>
+            {(teams||[]).filter(t=>notes[`${t.id}_${h.hole}`]).map((team,i,arr)=>(
+              <div key={team.id} style={{padding:"12px 18px",borderBottom:i<arr.length-1?`1px solid ${T.sep}`:"none"}}>
+                <div style={{fontFamily:T.font,fontSize:12,fontWeight:700,color:T.green,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.05em"}}>{team.name}</div>
+                <div style={{fontFamily:T.font,fontSize:15,color:"#000"}}>{notes[`${team.id}_${h.hole}`]}</div>
               </div>
             ))}
           </div>
@@ -1318,96 +970,65 @@ function CompetitionsView({ teams, notes, HOLES }) {
 
 // ── Message Board ─────────────────────────────────────────────────────────────
 function MessageBoard({ messages, setMessages, currentUser, onRefresh }) {
-  const [text, setText] = React.useState("");
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [text, setText] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const bottomRef = React.useRef(null);
-  // Safely convert any format to a sorted array
+
   const msgList = (() => {
     try {
       if (!messages) return [];
-      if (Array.isArray(messages)) return [...messages].sort((a,b) => (a.ts||0)-(b.ts||0));
-      if (typeof messages === "object") return Object.values(messages).filter(Boolean).sort((a,b) => (a.ts||0)-(b.ts||0));
+      if (Array.isArray(messages)) return [...messages].sort((a,b)=>(a.ts||0)-(b.ts||0));
+      if (typeof messages==="object") return Object.values(messages).filter(Boolean).sort((a,b)=>(a.ts||0)-(b.ts||0));
       return [];
     } catch(e) { return []; }
   })();
 
-  // Pull fresh messages from Firebase whenever the board is opened
-  React.useEffect(() => {
-    try { if (onRefresh) onRefresh(); } catch(e) { console.error("refresh error:", e); }
-  }, []);
-
-  React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [msgList.length]);
 
   const doRefresh = async () => {
     setRefreshing(true);
     if (onRefresh) await onRefresh();
-    setTimeout(() => setRefreshing(false), 800);
+    setTimeout(()=>setRefreshing(false), 800);
   };
 
   const send = () => {
-    const t = text.trim();
-    if (!t) return;
-    const id = Date.now();
-    const msg = { id, author: currentUser?.name || "Guest", text: t, ts: id };
-    setMessages(prev => {
-      const obj = (!prev || Array.isArray(prev)) ? {} : (typeof prev === "object" ? prev : {});
-      return { ...obj, [id]: msg };
+    const t=text.trim(); if(!t) return;
+    const id=Date.now();
+    const msg={id, author:currentUser?.name||"Guest", text:t, ts:id};
+    setMessages(prev=>{
+      const obj=(!prev||Array.isArray(prev))?{}:(typeof prev==="object"?prev:{});
+      return {...obj,[id]:msg};
     });
     setText("");
   };
 
-  const formatTime = (ts) => {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
-  const isMine = (msg) => msg.author === currentUser?.name;
+  const isMine = msg => msg.author===currentUser?.name;
+  const formatTime = ts => new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: 400 }}>
-      <div style={{ fontFamily: T.font, fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "#fff", marginBottom: 4 }}>Message Board</div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ fontFamily: T.font, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Chat with everyone on the outing</div>
-        <button onClick={doRefresh} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 20, padding: "5px 14px", cursor: "pointer", fontFamily: T.font, fontSize: 13, fontWeight: 500 }}>
-          {refreshing ? "Refreshing…" : "Refresh"}
+    <div style={{display:"flex",flexDirection:"column",minHeight:400}}>
+      <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#fff",marginBottom:4}}>Message Board</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)"}}>Chat with everyone on the outing</div>
+        <button onClick={doRefresh} style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"5px 14px",cursor:"pointer",fontFamily:T.font,fontSize:13,fontWeight:500}}>
+          {refreshing?"Refreshing…":"Refresh"}
         </button>
       </div>
-
-      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
-        {msgList.length === 0 && (
-          <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontFamily: T.font, fontSize: 14, padding: "40px 0" }}>
-            No messages yet. Say something! 👋
-          </div>
-        )}
-        {msgList.map(msg => (
-          <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine(msg) ? "flex-end" : "flex-start", marginBottom: 10 }}>
-            {!isMine(msg) && (
-              <div style={{ fontFamily: T.font, fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 3, paddingLeft: 4 }}>{msg.author}</div>
-            )}
-            <div style={{
-              background: isMine(msg) ? "#DCF0FF" : "#ffffff",
-              color: "#000",
-              border: isMine(msg) ? "1.5px solid rgba(0,122,255,0.25)" : "1.5px solid rgba(118,118,128,0.15)",
-              borderRadius: isMine(msg) ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-              padding: "10px 14px",
-              maxWidth: "78%",
-              fontFamily: T.font, fontSize: 15,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-            }}>
+      <div style={{flex:1,overflowY:"auto",paddingBottom:8}}>
+        {msgList.length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.5)",fontFamily:T.font,fontSize:14,padding:"40px 0"}}>No messages yet. Say something! 👋</div>}
+        {msgList.map(msg=>(
+          <div key={msg.id} style={{display:"flex",flexDirection:"column",alignItems:isMine(msg)?"flex-end":"flex-start",marginBottom:10}}>
+            {!isMine(msg) && <div style={{fontFamily:T.font,fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.55)",marginBottom:3,paddingLeft:4}}>{msg.author}</div>}
+            <div style={{background:isMine(msg)?"#DCF0FF":"#ffffff",color:"#000",borderRadius:isMine(msg)?"18px 18px 4px 18px":"18px 18px 18px 4px",padding:"10px 14px",maxWidth:"78%",fontFamily:T.font,fontSize:15,boxShadow:"0 1px 3px rgba(0,0,0,0.1)",border:isMine(msg)?"1.5px solid rgba(0,122,255,0.25)":"1.5px solid rgba(118,118,128,0.15)"}}>
               {msg.text}
             </div>
-            <div style={{ fontFamily: T.font, fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3, paddingLeft: 4, paddingRight: 4 }}>{formatTime(msg.ts)}</div>
+            <div style={{fontFamily:T.font,fontSize:10,color:"rgba(255,255,255,0.35)",marginTop:3,paddingLeft:4,paddingRight:4}}>{formatTime(msg.ts)}</div>
           </div>
         ))}
-        <div ref={bottomRef} />
+        <div ref={bottomRef}/>
       </div>
-
-      <div className="msg-input-row" style={{ borderRadius: 14, marginTop: 12 }}>
-        <input className="msg-input" value={text} onChange={e => setText(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && send()}
-          placeholder="Type a message…" />
+      <div className="msg-input-row" style={{borderRadius:14,marginTop:12}}>
+        <input className="msg-input" value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type a message…"/>
         <button className="msg-send" onClick={send}>↑</button>
       </div>
     </div>
