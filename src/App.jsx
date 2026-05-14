@@ -271,14 +271,14 @@ function safeObj(v)  { if(v&&typeof v==="object"&&!Array.isArray(v)) return v; r
 // Initial state from localStorage
 const _init = lsRead() || {};
 const _db = {
-  teams:    safeArr(_init.teams),
-  scores:   safeObj(_init.scores),
-  notes:    safeObj(_init.notes),
-  messages: safeObj(_init.messages),
+  jvi_teams:    safeArr(_init.jvi_teams),
+  jvi_scores:   safeObj(_init.jvi_scores),
+  jvi_notes:    safeObj(_init.jvi_notes),
+  jvi_messages: safeObj(_init.jvi_messages),
 };
 
 // Registry of React setState functions per key
-const _reg = { teams:new Set(), scores:new Set(), notes:new Set(), messages:new Set() };
+const _reg = { jvi_teams:new Set(), jvi_scores:new Set(), jvi_notes:new Set(), jvi_messages:new Set() };
 
 // Write a key — update memory, localStorage, Firebase
 function dbSet(key, value) {
@@ -297,13 +297,17 @@ async function syncFromFirebase() {
     if(!r.ok) return false;
     const data = await r.json();
     if(!data) return false;
-    _db.teams    = safeArr(data.teams);
-    _db.scores   = safeObj(data.scores);
-    _db.notes    = safeObj(data.notes);
-    _db.messages = safeObj(data.messages);
+    // Keys in Firebase match the hook keys (jvi_teams, jvi_scores etc)
+    if(data.jvi_teams    !== undefined) _db.jvi_teams    = safeArr(data.jvi_teams);
+    if(data.jvi_scores   !== undefined) _db.jvi_scores   = safeObj(data.jvi_scores);
+    if(data.jvi_notes    !== undefined) _db.jvi_notes    = safeObj(data.jvi_notes);
+    if(data.jvi_messages !== undefined) _db.jvi_messages = safeObj(data.jvi_messages);
     lsWrite(_db);
-    Object.keys(_reg).forEach(key => _reg[key]?.forEach(fn => { try{fn(_db[key]);}catch{} }));
-    console.log("✓ Synced from Firebase");
+    // Notify all hooks
+    ["jvi_teams","jvi_scores","jvi_notes","jvi_messages"].forEach(key => {
+      _reg[key]?.forEach(fn => { try{fn(_db[key]);}catch{} });
+    });
+    console.log("✓ Synced from Firebase:", JSON.stringify(_db.jvi_teams?.length), "teams");
     return true;
   } catch(e) { console.error("Sync error:", e); return false; }
 }
@@ -360,10 +364,7 @@ function JVIApp() {
   const HOLES = COURSE.holes;
 
   // Sync from Firebase on mount + every 15s
-  const [lastSync, setLastSync] = useState(null);
-  const doSync = React.useCallback(() => {
-    syncFromFirebase().then(ok => { if(ok) setLastSync(new Date().toLocaleTimeString()); });
-  }, []);
+  const doSync = React.useCallback(() => { syncFromFirebase(); }, []);
   useEffect(() => {
     doSync();
     const id = setInterval(doSync, 15000);
@@ -474,7 +475,7 @@ function JVIApp() {
 
   const getTeamTotal   = (team) => team && team.id ? HOLES.reduce((a, h) => a + (scores[`${team.id}_${h.hole}`] || 0), 0) : 0;
   const getTeamToPar   = (team) => team && team.id ? HOLES.reduce((a, h) => { const s = scores[`${team.id}_${h.hole}`]; return s ? a + s - h.par : a; }, 0) : 0;
-  const getHolesPlayed = (team) => HOLES.filter(h => scores[`${team.id}_${h.hole}`]).length;
+  const getHolesPlayed = (team) => team && team.id ? HOLES.filter(h => scores[`${team.id}_${h.hole}`]).length : 0;
 
   const getSkin = (holeNum) => {
     const h = HOLES[holeNum - 1]; if (!h) return null;
@@ -494,7 +495,7 @@ function JVIApp() {
   const formatToPar = (n) => n === 0 ? "E" : n > 0 ? `+${n}` : `${n}`;
   const toParColor  = (n) => n < 0 ? T.greenAccent : n > 0 ? T.red : "#000";
   const myTeam = currentUser?.teamId ? teams.find(t => t.id === currentUser.teamId) : null;
-  const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setMessages([]); setResetConfirm(false); showToast("All data reset"); };
+  const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setMessages({}); setResetConfirm(false); showToast("All data reset"); };
 
   const frontPar = HOLES.slice(0,9).reduce((a,h) => a+h.par, 0);
   const backPar  = HOLES.slice(9,18).reduce((a,h) => a+h.par, 0);
@@ -520,8 +521,8 @@ function JVIApp() {
         </div>
         {currentUser && (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={doSync} title="Sync latest data" style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.8)", borderRadius:20, padding:"6px 12px", cursor:"pointer", fontFamily:T.font, fontSize:12 }}>
-              ↻ Sync{lastSync ? ` ${lastSync}` : ""}
+            <button onClick={doSync} title="Sync latest data" style={{ background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.8)", borderRadius:20, padding:"6px 14px", cursor:"pointer", fontFamily:T.font, fontSize:13, fontWeight:500 }}>
+              ↻ Sync
             </button>
             <div style={{ color: "rgba(255,255,255,0.9)", fontFamily: T.font, fontSize: 13, fontWeight: 600, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 20, padding: "6px 14px" }}>
               {currentUser.name}
@@ -731,8 +732,6 @@ function JVIApp() {
 function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, setNewTeamName, newPlayers, setNewPlayers, newScorer, setNewScorer, addTeam, removeTeam }) {
   const [confirmRemove, setConfirmRemove] = useState(null);
   const inp = { width: "100%", padding: "13px 14px", borderRadius: 12, border: "1px solid rgba(118,118,128,0.2)", background: "rgba(118,118,128,0.06)", fontFamily: T.font, fontSize: 15, color: "#000", outline: "none" };
-
-
 
   return (
     <div>
