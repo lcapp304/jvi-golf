@@ -256,93 +256,127 @@ const css = `
   @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 400px; } }
 `;
 
-// ── Storage: localStorage (primary) + Firebase (cross-device sync) ────────────
-const FB_URL = "https://jvi-golf-default-rtdb.firebaseio.com/jvi_data";
-const LS_KEY  = "jvi_v4";
+// ── Storage: Firebase Realtime Database via REST + localStorage backup ─────────
+// Single source of truth: Firebase. localStorage is only a fast initial load.
+// Every write goes to Firebase immediately. Every device reads from Firebase on load.
+// Auto-refresh every 10 seconds ensures all devices stay in sync.
 
-// Safe read/write localStorage
-function lsRead()      { try { const v=localStorage.getItem(LS_KEY); return v?JSON.parse(v):null; } catch{return null;} }
-function lsWrite(data) { try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch{} }
+const FB = "https://jvi-golf-default-rtdb.firebaseio.com";
+const LS  = "jvi_v5";
 
-// Safe normalize — always return expected type
-function safeArr(v)  { if(Array.isArray(v)) return v; if(v&&typeof v==="object") return Object.values(v); return []; }
-function safeObj(v)  { if(v&&typeof v==="object"&&!Array.isArray(v)) return v; return {}; }
-
-// Initial state from localStorage
-const _init = lsRead() || {};
-const _db = {
-  jvi_teams:    safeArr(_init.jvi_teams),
-  jvi_scores:   safeObj(_init.jvi_scores),
-  jvi_notes:    safeObj(_init.jvi_notes),
-  jvi_messages: safeObj(_init.jvi_messages),
+const safe = {
+  arr: v => Array.isArray(v) ? v : (v && typeof v==="object" ? Object.values(v) : []),
+  obj: v => (v && typeof v==="object" && !Array.isArray(v)) ? v : {},
 };
 
-// Registry of React setState functions per key
-const _reg = { jvi_teams:new Set(), jvi_scores:new Set(), jvi_notes:new Set(), jvi_messages:new Set() };
+// localStorage helpers
+const ls = {
+  read: () => { try { const v=localStorage.getItem(LS); return v?JSON.parse(v):{}; } catch{return {};} },
+  write: d => { try { localStorage.setItem(LS, JSON.stringify(d)); } catch{} },
+};
 
-// Write a key — update memory, localStorage, Firebase
-function dbSet(key, value) {
-  _db[key] = value;
-  lsWrite(_db);
-  fetch(`${FB_URL}.json`, {
-    method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(_db)
-  }).catch(()=>{});
-  _reg[key]?.forEach(fn => { try{fn(value);}catch{} });
+// Firebase helpers — each key is its own path to avoid overwriting
+const fb = {
+  get: async (key) => {
+    try {
+      const r = await fetch(`${FB}/${key}.json`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      return d;
+    } catch(e) { console.error("FB get error:", key, e); return null; }
+  },
+  set: async (key, value) => {
+    try {
+      await fetch(`${FB}/${key}.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(value),
+      });
+    } catch(e) { console.error("FB set error:", key, e); }
+  },
+};
+
+// Central state registry — maps key -> Set of setState functions
+const reg = {};
+function register(key, fn) {
+  if (!reg[key]) reg[key] = new Set();
+  reg[key].add(fn);
+  return () => reg[key].delete(fn);
+}
+function notify(key, value) {
+  reg[key]?.forEach(fn => { try { fn(value); } catch(e) {} });
 }
 
-// Pull latest from Firebase and update all hooks
+// Sync a single key from Firebase and notify hooks
+async function syncKey(key, normalize) {
+  const remote = await fb.get(key);
+  if (remote === null) return; // network error, keep local
+  const value = normalize(remote);
+  const local = ls.read();
+  local[key] = value;
+  ls.write(local);
+  notify(key, value);
+}
+
+// Sync all keys
 async function syncFromFirebase() {
-  try {
-    const r = await fetch(`${FB_URL}.json`);
-    if(!r.ok) return false;
-    const data = await r.json();
-    if(!data) return false;
-    // Keys in Firebase match the hook keys (jvi_teams, jvi_scores etc)
-    if(data.jvi_teams    !== undefined) _db.jvi_teams    = safeArr(data.jvi_teams);
-    if(data.jvi_scores   !== undefined) _db.jvi_scores   = safeObj(data.jvi_scores);
-    if(data.jvi_notes    !== undefined) _db.jvi_notes    = safeObj(data.jvi_notes);
-    if(data.jvi_messages !== undefined) _db.jvi_messages = safeObj(data.jvi_messages);
-    lsWrite(_db);
-    // Notify all hooks
-    ["jvi_teams","jvi_scores","jvi_notes","jvi_messages"].forEach(key => {
-      _reg[key]?.forEach(fn => { try{fn(_db[key]);}catch{} });
-    });
-    console.log("✓ Synced from Firebase:", JSON.stringify(_db.jvi_teams?.length), "teams");
-    return true;
-  } catch(e) { console.error("Sync error:", e); return false; }
+  console.log("Syncing from Firebase...");
+  await Promise.all([
+    syncKey("jvi_teams",    safe.arr),
+    syncKey("jvi_scores",   safe.obj),
+    syncKey("jvi_notes",    safe.obj),
+    syncKey("jvi_messages", safe.obj),
+  ]);
+  console.log("✓ Sync complete");
 }
 
 // Simple hook for local-only UI state
 function useStorage(key, init) {
-  const [state, setState] = useState(() => { try{const v=localStorage.getItem(key);return v?JSON.parse(v):init();}catch{return init();} });
-  useEffect(() => { try{localStorage.setItem(key,JSON.stringify(state));}catch{} }, [state,key]);
+  const [state, setState] = useState(() => {
+    try { const v=localStorage.getItem(key); return v?JSON.parse(v):init(); } catch { return init(); }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
+  }, [state, key]);
   return [state, setState];
 }
 
-// Shared hook — backed by _db, synced via dbSet
-function useSharedStorage(key, def) {
-  const [state, setState] = useState(_db[key] ?? def);
+// Shared hook — reads from localStorage on init, updates from Firebase via notify
+function useSharedStorage(key, normalize, def) {
+  const cached = ls.read()[key];
+  const [state, setState] = useState(() => {
+    if (cached !== undefined && cached !== null) return normalize(cached);
+    return def;
+  });
+
   useEffect(() => {
-    if(!_reg[key]) _reg[key] = new Set();
-    const setter = v => setState(v ?? def);
-    _reg[key].add(setter);
-    return () => _reg[key].delete(setter);
+    const unsub = register(key, v => setState(normalize(v)));
+    // Also load fresh from Firebase immediately on mount
+    syncKey(key, normalize).then(() => {});
+    return unsub;
   }, [key]);
-  const set = React.useCallback(updater => {
+
+  const set = React.useCallback((updater) => {
     setState(prev => {
-      const next = typeof updater==="function" ? updater(prev??def) : updater;
-      dbSet(key, next);
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      // Write to localStorage immediately
+      const local = ls.read();
+      local[key] = next;
+      ls.write(local);
+      // Write to Firebase immediately (async, non-blocking)
+      fb.set(key, next).then(() => console.log("✓ Saved:", key));
       return next;
     });
   }, [key]);
+
   return [state, set];
 }
 
 function JVIApp() {
-  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  []);
-  const [scores, setScores] = useSharedStorage("jvi_scores", {});
-  const [notes,    setNotes]    = useSharedStorage("jvi_notes",    {});
-  const [messages, setMessages] = useSharedStorage("jvi_messages", {});
+  const [teams,  setTeams]  = useSharedStorage("jvi_teams",  safe.arr, []);
+  const [scores, setScores] = useSharedStorage("jvi_scores", safe.obj, {});
+  const [notes,    setNotes]    = useSharedStorage("jvi_notes",    safe.obj, {});
+  const [messages, setMessages] = useSharedStorage("jvi_messages", safe.obj, {});
 
   const [view,         setView]         = useState("login");
   const [currentUser,  setCurrentUser]  = useState(null);
@@ -364,7 +398,7 @@ function JVIApp() {
   const HOLES = COURSE.holes;
 
   // Sync from Firebase on mount + every 15s
-  const doSync = React.useCallback(() => { syncFromFirebase(); }, []);
+  const doSync = React.useCallback(() => { syncFromFirebase().then(() => showToast("Synced!")); }, []);
   useEffect(() => {
     doSync();
     const id = setInterval(doSync, 15000);
