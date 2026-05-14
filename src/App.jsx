@@ -103,16 +103,27 @@ async function syncFromFirebase() {
     const r = await fetch(FB_URL);
     if (!r.ok) { console.error("Firebase read failed:", r.status); return; }
     const data = await r.json();
-    if (!data) { console.log("Firebase empty"); return; }
-    _cache = {
+    if (!data) { console.log("Firebase empty — keeping local data"); return; }
+    const remote = {
       teams:    safe.arr(data.teams),
       scores:   safe.obj(data.scores),
       notes:    safe.obj(data.notes),
       messages: safe.obj(data.messages),
     };
+    // Only update if remote has meaningful data (prevents wiping local with empty Firebase)
+    const hasRemoteTeams   = remote.teams.length > 0;
+    const hasLocalTeams    = _cache.teams.length > 0;
+    const hasRemoteScores  = Object.keys(remote.scores).length > 0;
+    const hasRemoteMessages= Object.keys(remote.messages).length > 0;
+    // Always take remote scores, notes, messages (they only grow)
+    if (hasRemoteScores)   _cache.scores   = remote.scores;
+    if (hasRemoteMessages) _cache.messages = remote.messages;
+    if (Object.keys(remote.notes).length > 0) _cache.notes = remote.notes;
+    // For teams: only replace if remote has teams OR local is empty
+    if (hasRemoteTeams || !hasLocalTeams) _cache.teams = remote.teams;
     saveLocal();
     notifyAll();
-    console.log("✓ Synced — teams:", _cache.teams.length);
+    console.log("✓ Synced — teams:", _cache.teams.length, "scores:", Object.keys(_cache.scores).length);
   } catch(e) { console.error("Firebase sync error:", e); }
 }
 
@@ -252,6 +263,9 @@ function JVIApp() {
           }
         }
       }
+      if ((teams||[]).length === 0) {
+        setLoginError("Teams haven't loaded yet. Tap ↻ Sync at the top right, then try again."); return;
+      }
       setLoginError("Captain name not found. Check your name matches what the admin entered."); return;
     }
     if (userType === "player") {
@@ -267,6 +281,9 @@ function JVIApp() {
         if (team.players[0]?.toLowerCase() === name) {
           setLoginError("You are registered as a captain. Please select 'Captain' instead."); return;
         }
+      }
+      if ((teams||[]).length === 0) {
+        setLoginError("Teams haven't loaded yet. Tap ↻ Sync at the top right, then try again."); return;
       }
       setLoginError("Player name not found. Check your name matches what the admin entered."); return;
     }
@@ -542,10 +559,7 @@ function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginErro
   const handleContinue = () => {
     setLoginError("");
     if (!userType) { setLoginError("Please select who you are."); return; }
-    if (userType === "player") {
-      if (!playerName.trim()) { setLoginError("Please enter your name."); return; }
-      onViewer(playerName.trim()); return;
-    }
+    if (!playerName.trim() && userType !== "admin") { setLoginError("Please enter your name."); return; }
     handleLogin(userType);
   };
   return (
