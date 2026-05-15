@@ -531,11 +531,14 @@ function JVIApp() {
                   <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2}
                     onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))}
                     placeholder="Closest to pin, longest drive, etc."
-                    style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1px solid rgba(118,118,128,0.2)",background: saved ? "rgba(118,118,128,0.06)" : "rgba(118,118,128,0.03)",fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",opacity: saved ? 1 : 0.5}} />
+                    style={{width:"100%",padding:"12px 14px",borderRadius:12,border: noteInput[key]!==undefined && noteInput[key]!==savedNote ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)",background: saved ? "rgba(118,118,128,0.06)" : "rgba(118,118,128,0.03)",fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",opacity: saved ? 1 : 0.5}} />
                   {!saved && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
+                  {saved && noteInput[key]!==undefined && noteInput[key]!==savedNote && (
+                    <div style={{fontFamily:T.font,fontSize:12,color:T.amber,marginTop:6,fontWeight:600}}>⚠ Unsaved changes — press Save to save your note</div>
+                  )}
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <button className="btn-sm" onClick={()=>saveScore(myTeam.id,selectedHole,saved)}>Save</button>
+                  <button className="btn-sm" style={{background: noteInput[key]!==undefined && noteInput[key]!==savedNote ? T.amber : T.green}} onClick={()=>saveScore(myTeam.id,selectedHole,saved)}>Save</button>
                   {savedNote && noteInput[key]===undefined && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent}}>✓ Note saved</span>}
                 </div>
               </div>
@@ -723,8 +726,11 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
               <div>
                 <div className="section-label">Notes</div>
                 <input key={`admn_${key}`} defaultValue={notes[key]||""} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc."
-                  style={{...inp, opacity: saved ? 1 : 0.5}} disabled={!saved} />
+                  style={{...inp, opacity: saved ? 1 : 0.5, border: noteInput[key]!==undefined && noteInput[key]!==(notes[key]||"") ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)"}} disabled={!saved} />
                 {!saved && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
+                {saved && noteInput[key]!==undefined && noteInput[key]!==(notes[key]||"") && (
+                  <div style={{fontFamily:T.font,fontSize:12,color:T.amber,marginTop:6,fontWeight:600}}>⚠ Unsaved changes — press Save</div>
+                )}
               </div>
             </div>
           );
