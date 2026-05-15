@@ -498,52 +498,21 @@ function JVIApp() {
             })}
           </div>
 
-          {(()=>{
-            const h=HOLES[selectedHole-1];
-            const key=`${myTeam.id}_${selectedHole}`;
-            const saved=scores[key];
-            const savedNote=notes[key]||"";
-            const skin=getSkin(selectedHole);
-            return (
-              <div className="glass fade-up" style={{borderRadius:20,padding:"22px 20px",marginBottom:20}}>
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
-                  <div>
-                    <div style={{fontFamily:T.font,fontSize:32,fontWeight:800,letterSpacing:"-1px",color:"#000",lineHeight:1}}>Hole {selectedHole}</div>
-                    <div style={{fontFamily:T.font,fontSize:15,color:T.label,marginTop:4}}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
-                  </div>
-                  {skin && (
-                    <div style={{background:skin.noSkin?"rgba(118,118,128,0.1)":skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.noSkin?"rgba(118,118,128,0.2)":skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"6px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.noSkin?T.label:skin.tie?T.amber:T.green}}>
-                      {skin.noSkin?"No skin — best score over par":skin.tie?"Tied":`Skin → ${skin.team.name}`}
-                    </div>
-                  )}
-                </div>
-                <div style={{marginBottom:18}}>
-                  <div className="section-label">Team score</div>
-                  <div style={{display:"flex",alignItems:"center",gap:14}}>
-                    <div className="score-box">
-                      <input className="score-input" type="number" min={1} max={20} key={`sc_${key}`} defaultValue={saved||""} placeholder="—" onChange={e=>setScoreInput(prev=>({...prev,[key]:e.target.value}))} />
-                    </div>
-                    {saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved} ({formatToPar(saved-h.par)})</span>}
-                  </div>
-                </div>
-                <div style={{marginBottom:18}}>
-                  <div className="section-label">Notes (optional)</div>
-                  <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2}
-                    onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))}
-                    placeholder="Closest to pin, longest drive, etc."
-                    style={{width:"100%",padding:"12px 14px",borderRadius:12,border: noteInput[key]!==undefined && noteInput[key]!==savedNote ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)",background: saved ? "rgba(118,118,128,0.06)" : "rgba(118,118,128,0.03)",fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",opacity: saved ? 1 : 0.5}} />
-                  {!saved && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
-                  {saved && noteInput[key]!==undefined && noteInput[key]!==savedNote && (
-                    <div style={{fontFamily:T.font,fontSize:12,color:T.amber,marginTop:6,fontWeight:600}}>⚠ Unsaved changes — press Save to save your note</div>
-                  )}
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <button className="btn-sm" style={{background: noteInput[key]!==undefined && noteInput[key]!==savedNote ? T.amber : T.green}} onClick={()=>saveScore(myTeam.id,selectedHole,saved)}>Save</button>
-                  {savedNote && noteInput[key]===undefined && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent}}>✓ Note saved</span>}
-                </div>
-              </div>
-            );
-          })()}
+          <ScoringCard
+            hole={HOLES[selectedHole-1]}
+            holeNum={selectedHole}
+            teamId={myTeam.id}
+            saved={scores[`${myTeam.id}_${selectedHole}`]}
+            savedNote={notes[`${myTeam.id}_${selectedHole}`]||""}
+            skin={getSkin(selectedHole)}
+            formatToPar={formatToPar}
+            onSave={(scoreVal, noteVal) => {
+              const key=`${myTeam.id}_${selectedHole}`;
+              if(scoreVal!==null) setScores(prev=>({...(prev||{}),[key]:scoreVal}));
+              setNotes(prev=>({...(prev||{}),[key]:noteVal}));
+              showToast("Saved!");
+            }}
+          />
 
           <div style={{marginTop:8}}>
             <TabBar tabs={["leaderboard","skins","competitions","messages"]} />
@@ -559,6 +528,87 @@ function JVIApp() {
     </div>
   );
 }
+
+// ── Scoring Card ──────────────────────────────────────────────────────────────
+function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatToPar, onSave }) {
+  const [scoreVal, setScoreVal] = useState(saved ? String(saved) : "");
+  const [noteVal,  setNoteVal]  = useState(savedNote);
+  const [dirty,    setDirty]    = useState(false);
+
+  // Reset when hole changes
+  React.useEffect(() => {
+    setScoreVal(saved ? String(saved) : "");
+    setNoteVal(savedNote);
+    setDirty(false);
+  }, [holeNum, saved, savedNote]);
+
+  const hasUnsaved = dirty && (noteVal !== savedNote || (scoreVal && parseInt(scoreVal) !== saved));
+  const canSave = scoreVal && parseInt(scoreVal) >= 1;
+
+  const handleSave = () => {
+    if (!canSave && !saved) { return; }
+    const newScore = scoreVal && parseInt(scoreVal) >= 1 ? parseInt(scoreVal) : null;
+    onSave(newScore, noteVal);
+    setDirty(false);
+  };
+
+  return (
+    <div className="glass fade-up" style={{borderRadius:20,padding:"22px 20px",marginBottom:20}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
+        <div>
+          <div style={{fontFamily:T.font,fontSize:32,fontWeight:800,letterSpacing:"-1px",color:"#000",lineHeight:1}}>Hole {holeNum}</div>
+          <div style={{fontFamily:T.font,fontSize:15,color:T.label,marginTop:4}}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
+        </div>
+        {skin && (
+          <div style={{background:skin.noSkin?"rgba(118,118,128,0.1)":skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.noSkin?"rgba(118,118,128,0.2)":skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"6px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.noSkin?T.label:skin.tie?T.amber:T.green}}>
+            {skin.noSkin?"No skin — best score over par":skin.tie?"Tied":`Skin → ${skin.team.name}`}
+          </div>
+        )}
+      </div>
+
+      {/* Score */}
+      <div style={{marginBottom:18}}>
+        <div className="section-label">Team score</div>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div className="score-box" style={{border: scoreVal && parseInt(scoreVal) !== saved ? "2.5px solid #FF9500" : "2.5px solid #1C3D2A"}}>
+            <input className="score-input" type="number" min={1} max={20}
+              value={scoreVal} placeholder="—"
+              style={{color: scoreVal && parseInt(scoreVal) !== saved ? "#FF9500" : "#1C3D2A"}}
+              onChange={e=>{setScoreVal(e.target.value);setDirty(true);}} />
+          </div>
+          {saved && parseInt(scoreVal)===saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved} ({formatToPar(saved-h.par)})</span>}
+        </div>
+      </div>
+
+      {/* Note */}
+      <div style={{marginBottom:18}}>
+        <div className="section-label">Notes (optional)</div>
+        <textarea value={noteVal} rows={2}
+          onChange={e=>{setNoteVal(e.target.value);setDirty(true);}}
+          placeholder={saved ? "Closest to pin, longest drive, etc." : "Enter a score first"}
+          disabled={!saved && !scoreVal}
+          style={{width:"100%",padding:"12px 14px",borderRadius:12,
+            border: dirty && noteVal!==savedNote ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)",
+            background: (saved||scoreVal) ? "rgba(118,118,128,0.06)" : "rgba(118,118,128,0.03)",
+            fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",
+            opacity:(saved||scoreVal)?1:0.5}} />
+        {!(saved||scoreVal) && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
+      </div>
+
+      {/* Save button */}
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <button className="btn-sm"
+          style={{background: hasUnsaved ? T.amber : T.green, opacity: (canSave||saved)?1:0.5}}
+          onClick={handleSave}>
+          {hasUnsaved ? "⚠ Save changes" : "Save"}
+        </button>
+        {hasUnsaved && <span style={{fontFamily:T.font,fontSize:13,color:T.amber,fontWeight:600}}>Unsaved changes</span>}
+        {!hasUnsaved && saved && !dirty && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent}}>✓ Saved</span>}
+      </div>
+    </div>
+  );
+}
+
 
 // ── Login Card ────────────────────────────────────────────────────────────────
 function LoginCard({ playerName, setPlayerName, adminPin, setAdminPin, loginError, setLoginError, handleLogin, onViewer }) {
@@ -708,37 +758,87 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
       </div>
       <div style={{display:"grid",gap:12}}>
         {(teams||[]).length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"24px 0"}}>Add teams first.</div>}
-        {(teams||[]).map(team=>{
-          const key=`${team.id}_${selectedHole}`, saved=scores[key];
-          return (
-            <div className="glass" key={team.id} style={{borderRadius:16,padding:"16px 18px"}}>
-              <div style={{fontFamily:T.font,fontSize:16,fontWeight:700,marginBottom:12}}>{team.name}</div>
-              <div style={{marginBottom:12}}>
-                <div className="section-label">Score</div>
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <div className="score-box">
-                    <input className="score-input" type="number" min={1} max={20} key={`adm_${key}`} defaultValue={saved||""} placeholder="—" onChange={e=>setScoreInput(prev=>({...prev,[key]:e.target.value}))} />
-                  </div>
-                  <button className="btn-sm" onClick={()=>{ if(!scoreInput[key]&&!saved){showToast("Enter a score first","error");return;} const note=noteInput[key]; if(scoreInput[key]&&!isNaN(parseInt(scoreInput[key]))&&parseInt(scoreInput[key])>=1){setScores(prev=>({...(prev||{}),[key]:parseInt(scoreInput[key])}));} if(note!==undefined){setNotes(prev=>({...(prev||{}),[key]:note}));} showToast("Saved!"); }}>Save</button>
-                  {saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved}</span>}
-                </div>
-              </div>
-              <div>
-                <div className="section-label">Notes</div>
-                <input key={`admn_${key}`} defaultValue={notes[key]||""} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc."
-                  style={{...inp, opacity: saved ? 1 : 0.5, border: noteInput[key]!==undefined && noteInput[key]!==(notes[key]||"") ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)"}} disabled={!saved} />
-                {!saved && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
-                {saved && noteInput[key]!==undefined && noteInput[key]!==(notes[key]||"") && (
-                  <div style={{fontFamily:T.font,fontSize:12,color:T.amber,marginTop:6,fontWeight:600}}>⚠ Unsaved changes — press Save</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {(teams||[]).map(team=>(
+          <AdminTeamScoreCard
+            key={team.id}
+            team={team}
+            holeNum={selectedHole}
+            saved={scores[`${team.id}_${selectedHole}`]}
+            savedNote={notes[`${team.id}_${selectedHole}`]||""}
+            onSave={(scoreVal, noteVal) => {
+              const key=`${team.id}_${selectedHole}`;
+              if(scoreVal!==null) setScores(prev=>({...(prev||{}),[key]:scoreVal}));
+              setNotes(prev=>({...(prev||{}),[key]:noteVal}));
+              showToast("Saved!");
+            }}
+          />
+        ))}
       </div>
     </div>
   );
 }
+
+// ── Admin Team Score Card ─────────────────────────────────────────────────────
+function AdminTeamScoreCard({ team, holeNum, saved, savedNote, onSave }) {
+  const [scoreVal, setScoreVal] = useState(saved ? String(saved) : "");
+  const [noteVal,  setNoteVal]  = useState(savedNote);
+  const [dirty,    setDirty]    = useState(false);
+  const inp = { width:"100%", padding:"12px 14px", borderRadius:12, border:"1px solid rgba(118,118,128,0.2)", background:"rgba(118,118,128,0.06)", fontFamily:T.font, fontSize:15, color:"#000", outline:"none" };
+
+  React.useEffect(() => {
+    setScoreVal(saved ? String(saved) : "");
+    setNoteVal(savedNote);
+    setDirty(false);
+  }, [holeNum, saved, savedNote]);
+
+  const hasUnsaved = dirty && (noteVal !== savedNote || (scoreVal && parseInt(scoreVal) !== saved));
+  const canSave = (scoreVal && parseInt(scoreVal) >= 1) || saved;
+
+  const handleSave = () => {
+    if (!scoreVal && !saved) { return; }
+    const newScore = scoreVal && parseInt(scoreVal) >= 1 ? parseInt(scoreVal) : null;
+    onSave(newScore, noteVal);
+    setDirty(false);
+  };
+
+  return (
+    <div className="glass" style={{borderRadius:16,padding:"16px 18px"}}>
+      <div style={{fontFamily:T.font,fontSize:16,fontWeight:700,marginBottom:12}}>{team.name}</div>
+      <div style={{marginBottom:12}}>
+        <div className="section-label">Score</div>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <div className="score-box" style={{border: scoreVal && parseInt(scoreVal) !== saved ? "2.5px solid #FF9500" : "2.5px solid #1C3D2A"}}>
+            <input className="score-input" type="number" min={1} max={20}
+              value={scoreVal} placeholder="—"
+              style={{color: scoreVal && parseInt(scoreVal) !== saved ? "#FF9500" : "#1C3D2A"}}
+              onChange={e=>{setScoreVal(e.target.value);setDirty(true);}} />
+          </div>
+          {saved && parseInt(scoreVal)===saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved}</span>}
+        </div>
+      </div>
+      <div style={{marginBottom:12}}>
+        <div className="section-label">Notes</div>
+        <input value={noteVal} onChange={e=>{setNoteVal(e.target.value);setDirty(true);}}
+          placeholder={saved ? "Closest to pin, longest drive, etc." : "Enter a score first"}
+          disabled={!saved && !scoreVal}
+          style={{...inp,
+            opacity:(saved||scoreVal)?1:0.5,
+            border: dirty && noteVal!==savedNote ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)"}} />
+        {!(saved||scoreVal) && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <button className="btn-sm"
+          style={{background: hasUnsaved ? T.amber : T.green, opacity:canSave?1:0.5}}
+          onClick={handleSave}>
+          {hasUnsaved ? "⚠ Save changes" : "Save"}
+        </button>
+        {hasUnsaved && <span style={{fontFamily:T.font,fontSize:13,color:T.amber,fontWeight:600}}>Unsaved changes</span>}
+        {!hasUnsaved && saved && !dirty && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent,fontWeight:600}}>✓ Saved</span>}
+      </div>
+    </div>
+  );
+}
+
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToPar, getHolesPlayed, formatToPar, toParColor, getSkin, highlightTeamId, frontPar, backPar, frontYds, backYds }) {
