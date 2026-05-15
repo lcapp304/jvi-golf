@@ -156,52 +156,85 @@ function useStorage(key, init) {
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 const css = `
-  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  body { margin:0; }
-  .jvi-root { font-family:${T.font}; min-height:100vh; background:linear-gradient(160deg,#0a2015 0%,#1c3d2a 40%,#0f2d1c 100%); }
-  .glass { background:rgba(255,255,255,0.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.6); }
-  .glass-dark { background:rgba(28,61,42,0.7); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.12); }
-  .jvi-input { width:100%; padding:14px 16px; background:rgba(118,118,128,0.08); border:1px solid rgba(118,118,128,0.2); border-radius:12px; font-family:${T.font}; font-size:17px; color:#000; outline:none; -webkit-appearance:none; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0; }
+  html { font-size:16px; -webkit-text-size-adjust:100%; }
+  body { margin:0; overscroll-behavior:none; }
+  input, textarea, select, button { font-family:inherit; -webkit-appearance:none; appearance:none; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; }
+
+  .jvi-root { font-family:${T.font}; min-height:100vh; min-height:-webkit-fill-available; background:linear-gradient(160deg,#0a2015 0%,#1c3d2a 40%,#0f2d1c 100%); }
+
+  .glass { background:rgba(255,255,255,0.93); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.6); }
+  .glass-dark { background:rgba(28,61,42,0.75); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.12); }
+
+  /* Inputs — large tap targets */
+  .jvi-input { width:100%; padding:16px; background:rgba(118,118,128,0.08); border:1px solid rgba(118,118,128,0.2); border-radius:14px; font-family:${T.font}; font-size:17px; color:#000; outline:none; -webkit-appearance:none; }
   .jvi-input:focus { border-color:#34C759; background:#fff; }
   .jvi-input::placeholder { color:rgba(60,60,67,0.4); }
-  .btn-primary { width:100%; padding:16px; background:#1C3D2A; color:#fff; border:none; border-radius:14px; font-family:${T.font}; font-size:17px; font-weight:600; cursor:pointer; }
-  .btn-primary:active { opacity:0.82; }
-  .btn-sm { padding:9px 18px; background:#1C3D2A; color:#fff; border:none; border-radius:10px; font-family:${T.font}; font-size:15px; font-weight:600; cursor:pointer; white-space:nowrap; }
-  .btn-sm:active { opacity:0.8; }
-  .btn-ghost { padding:9px 18px; background:rgba(118,118,128,0.1); color:#000; border:none; border-radius:10px; font-family:${T.font}; font-size:15px; font-weight:500; cursor:pointer; }
-  .btn-danger { padding:8px 14px; background:rgba(255,59,48,0.1); color:#FF3B30; border:1px solid rgba(255,59,48,0.2); border-radius:10px; font-family:${T.font}; font-size:13px; font-weight:500; cursor:pointer; }
-  .tab-bar { display:flex; overflow-x:auto; border-bottom:1px solid ${T.sep}; background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); scrollbar-width:none; }
+
+  /* Buttons — minimum 44px tap targets */
+  .btn-primary { width:100%; padding:18px; background:#1C3D2A; color:#fff; border:none; border-radius:14px; font-family:${T.font}; font-size:17px; font-weight:600; cursor:pointer; min-height:56px; }
+  .btn-primary:active { opacity:0.82; transform:scale(0.98); }
+  .btn-sm { padding:12px 22px; background:#1C3D2A; color:#fff; border:none; border-radius:12px; font-family:${T.font}; font-size:16px; font-weight:600; cursor:pointer; white-space:nowrap; min-height:48px; display:inline-flex; align-items:center; justify-content:center; }
+  .btn-sm:active { opacity:0.8; transform:scale(0.97); }
+  .btn-ghost { padding:12px 20px; background:rgba(118,118,128,0.1); color:#000; border:none; border-radius:12px; font-family:${T.font}; font-size:16px; font-weight:500; cursor:pointer; min-height:48px; }
+  .btn-ghost:active { background:rgba(118,118,128,0.2); }
+  .btn-danger { padding:10px 16px; background:rgba(255,59,48,0.1); color:#FF3B30; border:1px solid rgba(255,59,48,0.2); border-radius:12px; font-family:${T.font}; font-size:14px; font-weight:600; cursor:pointer; min-height:44px; }
+
+  /* Tab bar — larger tabs, sticky at top */
+  .tab-bar { display:flex; overflow-x:auto; border-bottom:1px solid ${T.sep}; background:rgba(255,255,255,0.97); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); scrollbar-width:none; position:sticky; top:0; z-index:100; }
   .tab-bar::-webkit-scrollbar { display:none; }
-  .tab-btn { flex-shrink:0; padding:14px 18px; background:transparent; border:none; border-bottom:2px solid transparent; font-family:${T.font}; font-size:15px; font-weight:500; color:rgba(60,60,67,0.6); cursor:pointer; white-space:nowrap; }
-  .tab-btn.active { color:#1C3D2A; border-bottom-color:#1C3D2A; font-weight:600; }
-  .hole-pill { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:${T.font}; font-size:14px; font-weight:600; cursor:pointer; border:2px solid transparent; transition:all 0.15s; flex-shrink:0; }
+  .tab-btn { flex-shrink:0; padding:16px 18px; background:transparent; border:none; border-bottom:3px solid transparent; font-family:${T.font}; font-size:15px; font-weight:500; color:rgba(60,60,67,0.6); cursor:pointer; white-space:nowrap; min-height:52px; }
+  .tab-btn.active { color:#1C3D2A; border-bottom-color:#1C3D2A; font-weight:700; }
+
+  /* Hole pills — larger for easier tapping */
+  .hole-pill { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:${T.font}; font-size:15px; font-weight:600; cursor:pointer; border:2px solid transparent; transition:all 0.15s; flex-shrink:0; }
   .hole-pill.selected { background:#1C3D2A; color:#fff; border-color:#1C3D2A; }
   .hole-pill.done { background:#FFD700; color:#1C3D2A; border-color:#FFD700; font-weight:800; }
-  .hole-pill.partial { background:rgba(255,149,0,0.12); color:#b36200; border-color:rgba(255,149,0,0.3); }
-  .hole-pill.empty { background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.85); border-color:rgba(255,255,255,0.2); }
-  .score-box { border:2.5px solid #1C3D2A; border-radius:14px; background:rgba(52,199,89,0.06); display:inline-flex; align-items:center; justify-content:center; }
-  .score-input { width:110px; padding:14px 8px; border:none; background:transparent; outline:none; font-family:${T.font}; font-size:38px; font-weight:700; text-align:center; color:#1C3D2A; -webkit-appearance:none; }
+  .hole-pill.partial { background:rgba(255,149,0,0.15); color:#b36200; border-color:rgba(255,149,0,0.4); }
+  .hole-pill.empty { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.9); border-color:rgba(255,255,255,0.25); }
+
+  /* Score box */
+  .score-box { border:2.5px solid #1C3D2A; border-radius:16px; background:rgba(52,199,89,0.06); display:inline-flex; align-items:center; justify-content:center; }
+  .score-input { width:90px; padding:14px 6px; border:none; background:transparent; outline:none; font-family:${T.font}; font-size:42px; font-weight:800; text-align:center; color:#1C3D2A; -webkit-appearance:none; -moz-appearance:textfield; }
   .score-input::placeholder { color:rgba(52,199,89,0.35); }
-  .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:rgba(28,28,30,0.9); color:#fff; padding:12px 24px; border-radius:20px; font-family:${T.font}; font-size:15px; font-weight:500; backdrop-filter:blur(10px); z-index:9999; white-space:nowrap; }
-  .toast.error { background:rgba(255,59,48,0.9); }
-  .section-label { font-family:${T.font}; font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:rgba(60,60,67,0.5); margin-bottom:8px; }
-  .lb-table { border-collapse:collapse; width:100%; min-width:700px; }
-  .lb-table th { font-family:${T.font}; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:8px 6px; text-align:center; background:#1C3D2A; color:rgba(255,255,255,0.85); }
+  .score-input::-webkit-inner-spin-button, .score-input::-webkit-outer-spin-button { -webkit-appearance:none; }
+
+  /* Toast — visible above keyboard */
+  .toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:rgba(28,28,30,0.92); color:#fff; padding:13px 28px; border-radius:22px; font-family:${T.font}; font-size:16px; font-weight:600; backdrop-filter:blur(10px); z-index:9999; white-space:nowrap; box-shadow:0 4px 20px rgba(0,0,0,0.3); }
+  .toast.error { background:rgba(255,59,48,0.95); }
+
+  .section-label { font-family:${T.font}; font-size:12px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(60,60,67,0.5); margin-bottom:8px; }
+
+  /* Leaderboard table */
+  .lb-table { border-collapse:collapse; width:100%; min-width:680px; }
+  .lb-table th { font-family:${T.font}; font-size:11px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; padding:10px 6px; text-align:center; background:#1C3D2A; color:rgba(255,255,255,0.9); }
   .lb-table th.left { text-align:left; padding-left:14px; }
-  .lb-table td { font-family:${T.font}; font-size:13px; padding:8px 6px; text-align:center; border-bottom:1px solid ${T.sep}; }
+  .lb-table td { font-family:${T.font}; font-size:13px; padding:10px 6px; text-align:center; border-bottom:1px solid ${T.sep}; }
   .lb-table td.left { text-align:left; padding-left:14px; }
-  .lb-table tr.team-row { cursor:pointer; transition:background 0.1s; }
-  .lb-table tr.team-row:hover { background:rgba(52,199,89,0.04); }
+  .lb-table tr.team-row { cursor:pointer; }
+  .lb-table tr.team-row:active { background:rgba(52,199,89,0.08); }
   .lb-table .subtotal { background:rgba(28,61,42,0.05); font-weight:700; }
-  .lb-table .meta-row td { background:rgba(28,61,42,0.03); font-size:11px; color:rgba(60,60,67,0.55); padding:5px 6px; border-bottom:1px solid ${T.sep}; }
+  .lb-table .meta-row td { background:rgba(28,61,42,0.03); font-size:11px; color:rgba(60,60,67,0.55); padding:6px 6px; border-bottom:1px solid ${T.sep}; }
   .lb-table .meta-row td.left { text-align:left; padding-left:14px; font-weight:600; color:rgba(60,60,67,0.7); }
-  .skin-winner { background:linear-gradient(135deg,#FFD700,#FFA500); color:#5C3A00; border-radius:5px; padding:1px 4px; font-weight:800; box-shadow:0 1px 4px rgba(255,165,0,0.45); display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; font-size:12px; }
-  .msg-input-row { display:flex; gap:8px; padding:12px 16px; background:rgba(255,255,255,0.95); border-top:1px solid ${T.sep}; position:sticky; bottom:0; backdrop-filter:blur(10px); }
-  .msg-input { flex:1; padding:11px 14px; border-radius:22px; border:1px solid rgba(118,118,128,0.25); background:rgba(118,118,128,0.07); font-family:${T.font}; font-size:15px; outline:none; }
-  .msg-send { width:38px; height:38px; border-radius:50%; background:#1C3D2A; border:none; color:#fff; font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-  .fade-up { animation:fadeUp 0.4s ease both; }
-`;
+  .skin-winner { background:linear-gradient(135deg,#FFD700,#FFA500); color:#5C3A00; border-radius:5px; font-weight:800; box-shadow:0 1px 4px rgba(255,165,0,0.45); display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; font-size:13px; }
+
+  /* Message board */
+  .msg-input-row { display:flex; gap:10px; padding:14px 16px; background:rgba(255,255,255,0.97); border-top:1px solid ${T.sep}; position:sticky; bottom:0; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  .msg-input { flex:1; padding:13px 16px; border-radius:24px; border:1px solid rgba(118,118,128,0.25); background:rgba(118,118,128,0.07); font-family:${T.font}; font-size:16px; outline:none; }
+  .msg-send { width:46px; height:46px; border-radius:50%; background:#1C3D2A; border:none; color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  /* Cards */
+  .glass { border-radius:16px; }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+  .fade-up { animation:fadeUp 0.35s ease both; }
+
+  /* Safe area for iPhone notch/home bar */
+  .safe-bottom { padding-bottom:env(safe-area-inset-bottom, 16px); }
+`;;
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 function JVIApp() {
@@ -384,7 +417,7 @@ function JVIApp() {
       {toast && <div className={`toast${toast.type==="error"?" error":""}`}>{toast.msg}</div>}
 
       {/* Header */}
-      <div style={{padding:"20px 20px 0", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+      <div style={{padding:"14px 16px 0", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8}}>
         <div style={{display:"flex", alignItems:"center", gap:12}}>
           <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>⛳</div>
           <div>
@@ -394,7 +427,7 @@ function JVIApp() {
         </div>
         {currentUser && (
           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <button onClick={doSync} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"rgba(255,255,255,0.85)",borderRadius:20,padding:"6px 14px",cursor:"pointer",fontFamily:T.font,fontSize:13,fontWeight:500}}>↻ Sync</button>
+            <button onClick={doSync} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"rgba(255,255,255,0.85)",borderRadius:20,padding:"8px 14px",cursor:"pointer",fontFamily:T.font,fontSize:14,fontWeight:600,minHeight:38}}>↻</button>
             <div style={{color:"rgba(255,255,255,0.9)",fontFamily:T.font,fontSize:13,fontWeight:600,background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:20,padding:"6px 14px"}}>{currentUser.name}</div>
             {signOutConfirm ? (
               <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -411,7 +444,7 @@ function JVIApp() {
 
       {/* Login */}
       {view==="login" && (
-        <div className="fade-up" style={{maxWidth:440,margin:"32px auto 0",padding:"0 20px 40px"}}>
+        <div className="fade-up" style={{maxWidth:440,margin:"24px auto 0",padding:"0 16px 40px"}}>
           <div className="glass-dark" style={{borderRadius:20,padding:"20px 22px",marginBottom:16}}>
             <div style={{color:"rgba(255,255,255,0.5)",fontSize:11,fontWeight:600,letterSpacing:"0.08em",textTransform:"uppercase",fontFamily:T.font,marginBottom:6}}>Today's course</div>
             <div style={{color:"#fff",fontSize:20,fontWeight:700,fontFamily:T.font,letterSpacing:"-0.3px"}}>{COURSE.name}</div>
@@ -441,7 +474,7 @@ function JVIApp() {
             <div style={{flex:1}}/>
             <button onClick={()=>setResetConfirm(true)} style={{background:"transparent",border:"none",color:T.red,fontFamily:T.font,fontSize:13,fontWeight:500,padding:"0 16px",cursor:"pointer"}}>Reset</button>
           </div>
-          <div style={{maxWidth:960,margin:"0 auto",padding:"20px 16px 40px"}}>
+          <div style={{maxWidth:960,margin:"0 auto",padding:"16px 12px 80px"}}>
             {resetConfirm && (
               <div style={{background:"rgba(255,59,48,0.08)",border:"1px solid rgba(255,59,48,0.2)",borderRadius:14,padding:16,marginBottom:20}}>
                 <div style={{fontFamily:T.font,fontSize:15,fontWeight:600,color:T.red,marginBottom:8}}>Reset all data?</div>
@@ -466,7 +499,7 @@ function JVIApp() {
       {view==="viewer" && (
         <div style={{marginTop:20}}>
           <TabBar tabs={["leaderboard","skins","competitions","messages"]} />
-          <div style={{maxWidth:900,margin:"0 auto",padding:"20px 16px 80px"}}>
+          <div style={{maxWidth:900,margin:"0 auto",padding:"16px 12px 80px"}}>
             {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} />}
             {adminTab==="skins"        && <SkinsView {...skinsProps} />}
             {adminTab==="competitions" && <CompetitionsView {...compProps} />}
@@ -477,7 +510,7 @@ function JVIApp() {
 
       {/* Captain/Scorer */}
       {view==="scoring" && myTeam && (
-        <div style={{maxWidth:800,margin:"20px auto 0",padding:"0 16px 40px"}}>
+        <div style={{maxWidth:800,margin:"12px auto 0",padding:"0 12px 80px"}}>
           <div className="glass-dark fade-up" style={{borderRadius:18,padding:"16px 20px",marginBottom:16}}>
             <div style={{color:"#fff",fontSize:19,fontWeight:700,fontFamily:T.font,letterSpacing:"-0.3px",marginBottom:8}}>{myTeam.name}</div>
             <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
@@ -490,7 +523,7 @@ function JVIApp() {
             </div>
           </div>
 
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12,scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
             {HOLES.map(h=>{
               const saved=scores[`${myTeam.id}_${h.hole}`];
               const cls=selectedHole===h.hole?"selected":saved?"done":"empty";
@@ -555,7 +588,7 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
   };
 
   return (
-    <div className="glass fade-up" style={{borderRadius:20,padding:"22px 20px",marginBottom:20}}>
+    <div className="glass fade-up" style={{borderRadius:16,padding:"18px 16px",marginBottom:16}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
         <div>
           <div style={{fontFamily:T.font,fontSize:32,fontWeight:800,letterSpacing:"-1px",color:"#000",lineHeight:1}}>Hole {holeNum}</div>
