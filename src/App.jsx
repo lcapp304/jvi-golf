@@ -83,12 +83,15 @@ function saveLocal() {
 
 // Per-key hook registries
 const _reg = { teams:new Set(), scores:new Set(), notes:new Set(), messages:new Set() };
+// Track last write time to avoid sync overwriting recent local changes
+let _lastWriteTime = 0;
 function notifyAll() {
   Object.keys(_reg).forEach(k => _reg[k].forEach(fn => { try { fn(_cache[k]); } catch(e) {} }));
 }
 
 // Write all data to Firebase
 async function pushToFirebase() {
+  _lastWriteTime = Date.now();
   try {
     const r = await fetch(FB_URL, {
       method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(_cache)
@@ -99,6 +102,11 @@ async function pushToFirebase() {
 
 // Read all data from Firebase, update cache + notify all hooks
 async function syncFromFirebase() {
+  // Skip sync if we wrote recently — our local data is newer than Firebase
+  if (Date.now() - _lastWriteTime < 12000) {
+    console.log("Skipping sync — wrote recently, local data is newest");
+    return;
+  }
   try {
     const r = await fetch(FB_URL);
     if (!r.ok) { console.error("Firebase read failed:", r.status); return; }
@@ -110,20 +118,18 @@ async function syncFromFirebase() {
       notes:    safe.obj(data.notes),
       messages: safe.obj(data.messages),
     };
-    // Only update if remote has meaningful data (prevents wiping local with empty Firebase)
-    const hasRemoteTeams   = remote.teams.length > 0;
-    const hasLocalTeams    = _cache.teams.length > 0;
-    const hasRemoteScores  = Object.keys(remote.scores).length > 0;
-    const hasRemoteMessages= Object.keys(remote.messages).length > 0;
-    // Always take remote scores, notes, messages (they only grow)
-    if (hasRemoteScores)   _cache.scores   = remote.scores;
-    if (hasRemoteMessages) _cache.messages = remote.messages;
-    if (Object.keys(remote.notes).length > 0) _cache.notes = remote.notes;
-    // For teams: only replace if remote has teams OR local is empty
+    // Always apply ALL remote data — Firebase is source of truth after write settles
+    const hasRemoteTeams = remote.teams.length > 0;
+    const hasLocalTeams  = _cache.teams.length > 0;
+    // Teams: only replace if remote has teams OR local is empty
     if (hasRemoteTeams || !hasLocalTeams) _cache.teams = remote.teams;
+    // Scores, notes, messages: always use remote (includes deletions)
+    _cache.scores   = remote.scores;
+    _cache.notes    = remote.notes;
+    _cache.messages = remote.messages;
     saveLocal();
     notifyAll();
-    console.log("✓ Synced — teams:", _cache.teams.length, "scores:", Object.keys(_cache.scores).length);
+    console.log("✓ Synced — teams:", _cache.teams.length, "notes:", Object.keys(_cache.notes).length);
   } catch(e) { console.error("Firebase sync error:", e); }
 }
 
@@ -542,7 +548,11 @@ function JVIApp() {
             onSave={(scoreVal, noteVal) => {
               const key=`${myTeam.id}_${selectedHole}`;
               if(scoreVal!==null) setScores(prev=>({...(prev||{}),[key]:scoreVal}));
-              setNotes(prev=>({...(prev||{}),[key]:noteVal}));
+              setNotes(prev=>{
+                const next={...(prev||{})};
+                if(noteVal===null) delete next[key]; else next[key]=noteVal;
+                return next;
+              });
               showToast("Saved!");
             }}
           />
@@ -583,7 +593,8 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
   const handleSave = () => {
     if (!canSave && !saved) { return; }
     const newScore = scoreVal && parseInt(scoreVal) >= 1 ? parseInt(scoreVal) : null;
-    onSave(newScore, noteVal);
+    // Pass null for note if empty — signals deletion
+    onSave(newScore, noteVal.trim() === '' ? null : noteVal.trim());
     setDirty(false);
   };
 
@@ -809,7 +820,11 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
             onSave={(scoreVal, noteVal) => {
               const key=`${team.id}_${selectedHole}`;
               if(scoreVal!==null) setScores(prev=>({...(prev||{}),[key]:scoreVal}));
-              setNotes(prev=>({...(prev||{}),[key]:noteVal}));
+              setNotes(prev=>{
+                const next={...(prev||{})};
+                if(noteVal===null) delete next[key]; else next[key]=noteVal;
+                return next;
+              });
               showToast("Saved!");
             }}
           />
@@ -840,7 +855,8 @@ function AdminTeamScoreCard({ team, holeNum, saved, savedNote, onSave }) {
   const handleSave = () => {
     if (!scoreVal && !saved) { return; }
     const newScore = scoreVal && parseInt(scoreVal) >= 1 ? parseInt(scoreVal) : null;
-    onSave(newScore, noteVal);
+    // Pass null for note if empty — signals deletion
+    onSave(newScore, noteVal.trim() === '' ? null : noteVal.trim());
     setDirty(false);
   };
 
