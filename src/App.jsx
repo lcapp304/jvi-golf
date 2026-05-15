@@ -572,19 +572,19 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
       <div style={{marginBottom:18}}>
         <div className="section-label">Team score</div>
         <div style={{display:"flex",alignItems:"center",gap:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"nowrap"}}>
             <button onClick={()=>{const v=Math.max(1,(parseInt(scoreVal)||0)-1);setScoreVal(String(v));setDirty(true);}}
-              style={{width:40,height:40,borderRadius:"50%",border:"2px solid #1C3D2A",background:"transparent",color:"#1C3D2A",fontSize:22,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,flexShrink:0}}>−</button>
-            <div className="score-box" style={{border: scoreChanged ? "2.5px solid #FF9500" : "2.5px solid #1C3D2A"}}>
+              style={{width:52,height:52,borderRadius:"50%",border:"none",background:"#1C3D2A",color:"#fff",fontSize:28,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(28,61,42,0.3)"}}>−</button>
+            <div className="score-box" style={{border: scoreChanged ? "2.5px solid #FF9500" : "2.5px solid #1C3D2A",flexShrink:0}}>
               <input className="score-input" type="number" min={1} max={20}
                 value={scoreVal} placeholder="—"
-                style={{color: scoreChanged ? "#FF9500" : "#1C3D2A"}}
+                style={{color: scoreChanged ? "#FF9500" : "#1C3D2A", width:90}}
                 onChange={e=>{setScoreVal(e.target.value);setDirty(true);}} />
             </div>
             <button onClick={()=>{const v=Math.min(20,(parseInt(scoreVal)||0)+1);setScoreVal(String(v));setDirty(true);}}
-              style={{width:40,height:40,borderRadius:"50%",border:"2px solid #1C3D2A",background:"transparent",color:"#1C3D2A",fontSize:22,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,flexShrink:0}}>+</button>
+              style={{width:52,height:52,borderRadius:"50%",border:"none",background:"#1C3D2A",color:"#fff",fontSize:28,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(28,61,42,0.3)"}}>+</button>
           </div>
-          {saved && !scoreChanged && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved} ({formatToPar(saved-h.par)})</span>}
+          {saved && !scoreChanged && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600,marginTop:8,display:"block"}}>✓ {saved} ({formatToPar(saved-h.par)})</span>}
         </div>
       </div>
 
@@ -817,19 +817,19 @@ function AdminTeamScoreCard({ team, holeNum, saved, savedNote, onSave }) {
       <div style={{marginBottom:12}}>
         <div className="section-label">Score</div>
         <div style={{display:"flex",alignItems:"center",gap:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"nowrap"}}>
             <button onClick={()=>{const v=Math.max(1,(parseInt(scoreVal)||0)-1);setScoreVal(String(v));setDirty(true);}}
-              style={{width:40,height:40,borderRadius:"50%",border:"2px solid #1C3D2A",background:"transparent",color:"#1C3D2A",fontSize:22,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,flexShrink:0}}>−</button>
-            <div className="score-box" style={{border: scoreChanged ? "2.5px solid #FF9500" : "2.5px solid #1C3D2A"}}>
+              style={{width:52,height:52,borderRadius:"50%",border:"none",background:"#1C3D2A",color:"#fff",fontSize:28,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(28,61,42,0.3)"}}>−</button>
+            <div className="score-box" style={{border: scoreChanged ? "2.5px solid #FF9500" : "2.5px solid #1C3D2A",flexShrink:0}}>
               <input className="score-input" type="number" min={1} max={20}
                 value={scoreVal} placeholder="—"
-                style={{color: scoreChanged ? "#FF9500" : "#1C3D2A"}}
+                style={{color: scoreChanged ? "#FF9500" : "#1C3D2A", width:90}}
                 onChange={e=>{setScoreVal(e.target.value);setDirty(true);}} />
             </div>
             <button onClick={()=>{const v=Math.min(20,(parseInt(scoreVal)||0)+1);setScoreVal(String(v));setDirty(true);}}
-              style={{width:40,height:40,borderRadius:"50%",border:"2px solid #1C3D2A",background:"transparent",color:"#1C3D2A",fontSize:22,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,flexShrink:0}}>+</button>
+              style={{width:52,height:52,borderRadius:"50%",border:"none",background:"#1C3D2A",color:"#fff",fontSize:28,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:"0 2px 8px rgba(28,61,42,0.3)"}}>+</button>
           </div>
-          {saved && !scoreChanged && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved}</span>}
+          {saved && !scoreChanged && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600,marginTop:8,display:"block"}}>✓ {saved}</span>}
         </div>
       </div>
       <div style={{marginBottom:12}}>
