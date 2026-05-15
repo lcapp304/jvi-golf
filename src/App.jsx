@@ -320,12 +320,21 @@ function JVIApp() {
     setEditTeam(null); showToast("Team updated!");
   };
 
-  const saveScore = (teamId, hole) => {
-    const key=`${teamId}_${hole}`, val=scoreInput[key];
-    if (!val || isNaN(parseInt(val)) || parseInt(val)<1) { showToast("Enter a valid score","error"); return; }
-    setScores(prev=>({...(prev||{}), [key]:parseInt(val)}));
-    if (noteInput[key]!==undefined) setNotes(prev=>({...(prev||{}), [key]:noteInput[key]}));
-    showToast("Score saved!");
+  const saveScore = (teamId, hole, existingScore) => {
+    const key=`${teamId}_${hole}`;
+    const val=scoreInput[key];
+    const parsedVal = val !== undefined ? parseInt(val) : existingScore;
+    // Need either a new score input or an existing saved score
+    if (!parsedVal || isNaN(parsedVal) || parsedVal < 1) { showToast("Enter a score first","error"); return; }
+    // Save score (use new input if provided, otherwise keep existing)
+    if (val !== undefined && !isNaN(parseInt(val)) && parseInt(val) >= 1) {
+      setScores(prev=>({...(prev||{}), [key]:parseInt(val)}));
+    }
+    // Always save note if there's input (allows adding note after score already saved)
+    if (noteInput[key] !== undefined) {
+      setNotes(prev=>({...(prev||{}), [key]:noteInput[key]}));
+    }
+    showToast("Saved!");
   };
 
   const getTeamTotal   = (team) => team?.id ? HOLES.reduce((a,h)=>a+(scores[`${team.id}_${h.hole}`]||0),0) : 0;
@@ -337,6 +346,8 @@ function JVIApp() {
     const hs=(teams||[]).map(t=>({team:t,score:scores[`${t.id}_${holeNum}`]})).filter(x=>x.score!=null);
     if(hs.length<(teams||[]).length||(teams||[]).length===0) return null;
     const min=Math.min(...hs.map(x=>x.score));
+    // No skin awarded if best score is bogey or worse
+    if(min > h.par) return {noSkin:true, reason:"best score was over par", score:min};
     const winners=hs.filter(x=>x.score===min);
     return winners.length===1 ? {team:winners[0].team, score:min, toPar:min-h.par} : {tie:true, score:min};
   };
@@ -501,8 +512,8 @@ function JVIApp() {
                     <div style={{fontFamily:T.font,fontSize:15,color:T.label,marginTop:4}}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
                   </div>
                   {skin && (
-                    <div style={{background:skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"6px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.tie?T.amber:T.green}}>
-                      {skin.tie?"Tied":`Skin → ${skin.team.name}`}
+                    <div style={{background:skin.noSkin?"rgba(118,118,128,0.1)":skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.noSkin?"rgba(118,118,128,0.2)":skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"6px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.noSkin?T.label:skin.tie?T.amber:T.green}}>
+                      {skin.noSkin?"No skin — best score over par":skin.tie?"Tied":`Skin → ${skin.team.name}`}
                     </div>
                   )}
                 </div>
@@ -512,22 +523,20 @@ function JVIApp() {
                     <div className="score-box">
                       <input className="score-input" type="number" min={1} max={20} key={`sc_${key}`} defaultValue={saved||""} placeholder="—" onChange={e=>setScoreInput(prev=>({...prev,[key]:e.target.value}))} />
                     </div>
-                    <button className="btn-sm" onClick={()=>saveScore(myTeam.id,selectedHole)}>Save</button>
                     {saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved} ({formatToPar(saved-h.par)})</span>}
                   </div>
                 </div>
-                <div>
+                <div style={{marginBottom:18}}>
                   <div className="section-label">Notes (optional)</div>
-                  <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc."
-                    style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1px solid rgba(118,118,128,0.2)",background:"rgba(118,118,128,0.06)",fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",marginBottom:10}} />
-                  <div style={{display:"flex",alignItems:"center",gap:12}}>
-                    <button className="btn-sm" onClick={()=>{
-                      const note=noteInput[key]!==undefined?noteInput[key]:savedNote;
-                      setNotes(prev=>({...(prev||{}),[key]:note}));
-                      showToast("Note saved!");
-                    }}>Save note</button>
-                    {savedNote && noteInput[key]===undefined && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent}}>✓ Note saved</span>}
-                  </div>
+                  <textarea key={`nt_${key}`} defaultValue={savedNote} rows={2}
+                    onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))}
+                    placeholder="Closest to pin, longest drive, etc."
+                    style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1px solid rgba(118,118,128,0.2)",background: saved ? "rgba(118,118,128,0.06)" : "rgba(118,118,128,0.03)",fontFamily:T.font,fontSize:15,color:"#000",outline:"none",resize:"vertical",opacity: saved ? 1 : 0.5}} />
+                  {!saved && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <button className="btn-sm" onClick={()=>saveScore(myTeam.id,selectedHole,saved)}>Save</button>
+                  {savedNote && noteInput[key]===undefined && <span style={{fontFamily:T.font,fontSize:13,color:T.greenAccent}}>✓ Note saved</span>}
                 </div>
               </div>
             );
@@ -689,8 +698,8 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
           <span style={{fontFamily:T.font,fontSize:14,color:T.label}}>Par {h.par} · {h.yards} yards · Hdcp {h.handicap}</span>
         </div>
         {skin && (
-          <div style={{display:"inline-block",background:skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"5px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.tie?T.amber:T.green}}>
-            {skin.tie?"Tied — no skin":`Skin → ${skin.team.name} (${skin.score}, ${formatToPar(skin.toPar)})`}
+          <div style={{display:"inline-block",background:skin.noSkin?"rgba(118,118,128,0.1)":skin.tie?"rgba(255,149,0,0.1)":"rgba(52,199,89,0.1)",border:`1px solid ${skin.noSkin?"rgba(118,118,128,0.2)":skin.tie?"rgba(255,149,0,0.3)":"rgba(52,199,89,0.3)"}`,borderRadius:10,padding:"5px 12px",fontFamily:T.font,fontSize:12,fontWeight:600,color:skin.noSkin?T.label:skin.tie?T.amber:T.green}}>
+            {skin.noSkin?"No skin — best score over par":skin.tie?"Tied — no skin":`Skin → ${skin.team.name} (${skin.score}, ${formatToPar(skin.toPar)})`}
           </div>
         )}
       </div>
@@ -707,23 +716,15 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
                   <div className="score-box">
                     <input className="score-input" type="number" min={1} max={20} key={`adm_${key}`} defaultValue={saved||""} placeholder="—" onChange={e=>setScoreInput(prev=>({...prev,[key]:e.target.value}))} />
                   </div>
-                  <button className="btn-sm" onClick={()=>{
-                    const val=scoreInput[key];
-                    if(!val||isNaN(parseInt(val))||parseInt(val)<1){showToast("Enter a valid score","error");return;}
-                    setScores(prev=>({...(prev||{}),[key]:parseInt(val)}));
-                    showToast("Score saved!");
-                  }}>Save</button>
+                  <button className="btn-sm" onClick={()=>{ if(!scoreInput[key]&&!saved){showToast("Enter a score first","error");return;} const note=noteInput[key]; if(scoreInput[key]&&!isNaN(parseInt(scoreInput[key]))&&parseInt(scoreInput[key])>=1){setScores(prev=>({...(prev||{}),[key]:parseInt(scoreInput[key])}));} if(note!==undefined){setNotes(prev=>({...(prev||{}),[key]:note}));} showToast("Saved!"); }}>Save</button>
                   {saved && <span style={{fontFamily:T.font,fontSize:14,color:T.greenAccent,fontWeight:600}}>✓ {saved}</span>}
                 </div>
               </div>
               <div>
                 <div className="section-label">Notes</div>
-                <input key={`admn_${key}`} defaultValue={notes[key]||""} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc." style={{...inp,marginBottom:10}} />
-                <button className="btn-sm" onClick={()=>{
-                  const note=noteInput[key]!==undefined?noteInput[key]:(notes[key]||"");
-                  setNotes(prev=>({...(prev||{}),[key]:note}));
-                  showToast("Note saved!");
-                }}>Save note</button>
+                <input key={`admn_${key}`} defaultValue={notes[key]||""} onChange={e=>setNoteInput(prev=>({...prev,[key]:e.target.value}))} placeholder="Closest to pin, longest drive, etc."
+                  style={{...inp, opacity: saved ? 1 : 0.5}} disabled={!saved} />
+                {!saved && <div style={{fontFamily:T.font,fontSize:12,color:T.label,marginTop:4}}>Enter a score before adding a note.</div>}
               </div>
             </div>
           );
@@ -791,7 +792,7 @@ function LeaderboardView({ teams, scores, notes, HOLES, getTeamTotal, getTeamToP
                 const ScoreCell = ({h}) => {
                   const s=scores[`${team.id}_${h.hole}`];
                   const skin=getSkin(h.hole);
-                  const wonSkin=skin&&!skin.tie&&skin.team&&skin.team.id===team.id;
+                  const wonSkin=skin&&!skin.tie&&!skin.noSkin&&skin.team&&skin.team.id===team.id;
                   const diff=s?s-h.par:null;
                   if(!s) return <td><span style={{color:"rgba(60,60,67,0.2)"}}>—</span></td>;
                   if(wonSkin) {
@@ -873,7 +874,7 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
   const skins = HOLES.map(h=>({hole:h,skin:getSkin(h.hole)}));
   const counts = {};
   (teams||[]).forEach(t=>{counts[t.id]={team:t,count:0};});
-  skins.forEach(({skin})=>{if(skin&&!skin.tie&&skin.team)counts[skin.team.id].count++;});
+  skins.forEach(({skin})=>{if(skin&&!skin.tie&&!skin.noSkin&&skin.team)counts[skin.team.id].count++;});
   const wonSkins = skins.filter(({skin})=>skin&&!skin.tie&&skin.team);
   return (
     <div>
@@ -931,12 +932,14 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
             <div>
               {skin===null
                 ? <span style={{fontFamily:T.font,fontSize:13,color:T.label}}>Pending</span>
-                : skin.tie
-                  ? <span style={{fontFamily:T.font,fontSize:13,color:T.amber,fontWeight:600}}>Tied — no winner</span>
-                  : <span style={{fontFamily:T.font,fontSize:14,fontWeight:700,color:"#000"}}>{skin.team.name}</span>}
+                : skin.noSkin
+                  ? <span style={{fontFamily:T.font,fontSize:13,color:T.label,fontStyle:"italic"}}>No skin — over par</span>
+                  : skin.tie
+                    ? <span style={{fontFamily:T.font,fontSize:13,color:T.amber,fontWeight:600}}>Tied — no winner</span>
+                    : <span style={{fontFamily:T.font,fontSize:14,fontWeight:700,color:"#000"}}>{skin.team.name}</span>}
             </div>
             <div>
-              {skin&&!skin.tie&&(
+              {skin&&!skin.tie&&!skin.noSkin&&(
                 <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,#FFD700,#FFA500)",borderRadius:8,padding:"3px 12px",fontFamily:T.font,fontSize:14,fontWeight:800,color:"#5C3A00",boxShadow:"0 1px 4px rgba(255,165,0,0.4)"}}>
                   {skin.score} ({formatToPar(skin.toPar)})
                 </span>
