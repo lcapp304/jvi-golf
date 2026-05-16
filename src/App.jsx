@@ -263,8 +263,12 @@ function JVIApp() {
   const [messages,      setMessages]      = useSharedStorage("messages",      safe.obj, {});
   const [competitions,  setCompetitions]  = useSharedStorage("competitions",  safe.obj, {});
 
-  const [view,          setView]          = useState("login");
-  const [currentUser,   setCurrentUser]   = useState(null);
+  const [view,          setView]          = useState(() => {
+    try { const v=localStorage.getItem("jvi_view"); return v||"login"; } catch{return "login";}
+  });
+  const [currentUser,   setCurrentUser]   = useState(() => {
+    try { const v=localStorage.getItem("jvi_user"); return v?JSON.parse(v):null; } catch{return null;}
+  });
   const [adminPin,      setAdminPin]      = useState("");
   const [playerName,    setPlayerName]    = useState("");
   const [selectedHole,  setSelectedHole]  = useState(1);
@@ -279,6 +283,14 @@ function JVIApp() {
   const [resetConfirm,  setResetConfirm]  = useState(false);
   const [signOutConfirm,setSignOutConfirm]= useState(false);
 
+  // Persist session to localStorage
+  useEffect(() => {
+    try {
+      if (currentUser) { localStorage.setItem("jvi_user", JSON.stringify(currentUser)); localStorage.setItem("jvi_view", view); }
+      else { localStorage.removeItem("jvi_user"); localStorage.removeItem("jvi_view"); }
+    } catch{}
+  }, [currentUser, view]);
+
   // Sync on mount + every 15s
   const doSync = React.useCallback(() => {
     syncFromFirebase().then(() => showToast("Synced!"));
@@ -291,7 +303,7 @@ function JVIApp() {
 
   const showToast = (msg, type="success") => { setToast({msg,type}); setTimeout(()=>setToast(null), 2600); };
 
-  const signOut = () => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); setSignOutConfirm(false); };
+  const signOut = () => { setCurrentUser(null); setView("login"); setPlayerName(""); setAdminPin(""); setLoginError(""); setSignOutConfirm(false); try{localStorage.removeItem("jvi_user");localStorage.removeItem("jvi_view");}catch{} };
 
   const handleLogin = (userType) => {
     setLoginError("");
@@ -828,7 +840,7 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
                     <div style={{display:"inline-block",background:"rgba(52,199,89,0.12)",borderRadius:6,padding:"3px 9px",fontFamily:T.font,fontSize:12,fontWeight:600,color:T.green}}>Captain: {team.players[0]}</div>
                   </div>
                   <div style={{display:"flex",gap:8}}>
-                    <button className="btn-ghost" style={{padding:"6px 14px",fontSize:13}} onClick={()=>{const p=[...team.players];while(p.length<4)p.push("");setEditTeam({...team,players:p});setTimeout(()=>document.getElementById("edit-team-form")?.scrollIntoView({behavior:"smooth",block:"start"}),50);}}>Edit</button>
+                    <button className="btn-ghost" style={{padding:"6px 14px",fontSize:13}} onClick={()=>{const p=[...team.players];while(p.length<4)p.push("");setEditTeam({...team,players:p});setTimeout(()=>window.scrollTo({top:0,behavior:"smooth"}),50);}}>Edit</button>
                     <button className="btn-danger" onClick={()=>setConfirmRemove(team.id)}>Remove</button>
                   </div>
                 </div>
