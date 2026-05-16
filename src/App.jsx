@@ -49,6 +49,17 @@ const backPar  = HOLES.slice(9,18).reduce((a,h)=>a+h.par,0);
 const frontYds = HOLES.slice(0,9).reduce((a,h)=>a+h.yards,0);
 const backYds  = HOLES.slice(9,18).reduce((a,h)=>a+h.yards,0);
 
+
+// ── Competition Holes ─────────────────────────────────────────────────────────
+const COMPETITIONS = {
+  2:  { label: "Long Drive — Seniors (55+)",  question: "Did the leader for Long Drive (Seniors 55+) change?" },
+  7:  { label: "Closest to the Pin",          question: "Did the leader for Closest to the Pin change?" },
+  9:  { label: "Closest to the Pin (Sand)",   question: "Did the leader for Closest to the Pin out of the Sand change?" },
+  12: { label: "Closest to the Pin",          question: "Did the leader for Closest to the Pin change?" },
+  13: { label: "Longest Drive",               question: "Did the leader for Longest Drive change?" },
+  16: { label: "Closest to the Pin (3rd Shot)", question: "Did the leader for Closest to the Pin on 3rd Shot change?" },
+};
+
 // ── Design Tokens ─────────────────────────────────────────────────────────────
 const T = {
   green:"#1C3D2A", greenAccent:"#34C759", red:"#FF3B30", amber:"#FF9500",
@@ -68,12 +79,12 @@ const safe = {
 };
 
 // Load from localStorage immediately (no flicker)
-let _cache = { teams:[], scores:{}, notes:{}, messages:{} };
+let _cache = { teams:[], scores:{}, notes:{}, messages:{}, competitions:{} };
 try {
   const v = localStorage.getItem(LS_KEY);
   if (v) {
     const d = JSON.parse(v);
-    _cache = { teams:safe.arr(d.teams), scores:safe.obj(d.scores), notes:safe.obj(d.notes), messages:safe.obj(d.messages) };
+    _cache = { teams:safe.arr(d.teams), scores:safe.obj(d.scores), notes:safe.obj(d.notes), messages:safe.obj(d.messages), competitions:safe.obj(d.competitions) };
   }
 } catch(e) {}
 
@@ -82,7 +93,7 @@ function saveLocal() {
 }
 
 // Per-key hook registries
-const _reg = { teams:new Set(), scores:new Set(), notes:new Set(), messages:new Set() };
+const _reg = { teams:new Set(), scores:new Set(), notes:new Set(), messages:new Set(), competitions:new Set() };
 // Track last write time to avoid sync overwriting recent local changes
 let _lastWriteTime = 0;
 function notifyAll() {
@@ -115,8 +126,9 @@ async function syncFromFirebase() {
     const remote = {
       teams:    safe.arr(data.teams),
       scores:   safe.obj(data.scores),
-      notes:    safe.obj(data.notes),
-      messages: safe.obj(data.messages),
+      notes:        safe.obj(data.notes),
+      messages:     safe.obj(data.messages),
+      competitions: safe.obj(data.competitions),
     };
     // Always apply ALL remote data — Firebase is source of truth after write settles
     const hasRemoteTeams = remote.teams.length > 0;
@@ -124,9 +136,10 @@ async function syncFromFirebase() {
     // Teams: only replace if remote has teams OR local is empty
     if (hasRemoteTeams || !hasLocalTeams) _cache.teams = remote.teams;
     // Scores, notes, messages: always use remote (includes deletions)
-    _cache.scores   = remote.scores;
-    _cache.notes    = remote.notes;
-    _cache.messages = remote.messages;
+    _cache.scores       = remote.scores;
+    _cache.notes        = remote.notes;
+    _cache.messages     = remote.messages;
+    _cache.competitions = remote.competitions || {};
     saveLocal();
     notifyAll();
     console.log("✓ Synced — teams:", _cache.teams.length, "notes:", Object.keys(_cache.notes).length);
@@ -247,7 +260,8 @@ function JVIApp() {
   const [teams,    setTeams]    = useSharedStorage("teams",    safe.arr, []);
   const [scores,   setScores]   = useSharedStorage("scores",   safe.obj, {});
   const [notes,    setNotes]    = useSharedStorage("notes",    safe.obj, {});
-  const [messages, setMessages] = useSharedStorage("messages", safe.obj, {});
+  const [messages,      setMessages]      = useSharedStorage("messages",      safe.obj, {});
+  const [competitions,  setCompetitions]  = useSharedStorage("competitions",  safe.obj, {});
 
   const [view,          setView]          = useState("login");
   const [currentUser,   setCurrentUser]   = useState(null);
@@ -400,11 +414,12 @@ function JVIApp() {
   const formatToPar = n => n===0?"E":n>0?`+${n}`:`${n}`;
   const toParColor  = n => n<0?T.greenAccent:n>0?T.red:"#000";
   const myTeam = currentUser?.teamId ? (teams||[]).find(t=>t.id===currentUser.teamId) : null;
-  const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setMessages({}); setResetConfirm(false); showToast("All data reset"); };
+  const resetAll = () => { setTeams([]); setScores({}); setNotes({}); setMessages({}); setCompetitions({}); setResetConfirm(false); showToast("All data reset"); };
 
   const lbProps = { teams:sortedTeams, scores, notes, HOLES, getTeamTotal, getTeamToPar, getHolesPlayed, formatToPar, toParColor, getSkin, frontPar, backPar, frontYds, backYds };
   const skinsProps = { teams:(teams||[]), HOLES, getSkin, formatToPar };
-  const compProps = { teams:(teams||[]), notes, HOLES };
+  const compProps = { competitions, setCompetitions, teams:(teams||[]) };
+  const notesProps = { teams:(teams||[]), notes, HOLES };
   const msgProps = { messages, setMessages, currentUser, onRefresh:doSync };
 
   const TabBar = ({ tabs }) => (
@@ -472,7 +487,7 @@ function JVIApp() {
       {view==="admin" && (
         <div style={{marginTop:20}}>
           <div className="tab-bar" style={{paddingLeft:4}}>
-            {["teams","scoring","leaderboard","skins","competitions","messages"].map(tab=>(
+            {["teams","scoring","leaderboard","skins","competitions","notes","messages"].map(tab=>(
               <button key={tab} className={"tab-btn"+(adminTab===tab?" active":"")} onClick={()=>setAdminTab(tab)}>
                 {tab.charAt(0).toUpperCase()+tab.slice(1)}
               </button>
@@ -492,10 +507,11 @@ function JVIApp() {
               </div>
             )}
             {adminTab==="teams"        && <TeamsTab teams={teams||[]} editTeam={editTeam} setEditTeam={setEditTeam} saveEditTeam={saveEditTeam} newTeamName={newTeamName} setNewTeamName={setNewTeamName} newPlayers={newPlayers} setNewPlayers={setNewPlayers} addTeam={addTeam} removeTeam={removeTeam} />}
-            {adminTab==="scoring"      && <AdminScoringTab teams={teams||[]} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} />}
+            {adminTab==="scoring"      && <AdminScoringTab teams={teams||[]} scores={scores} notes={notes} setScores={setScores} setNotes={setNotes} selectedHole={selectedHole} setSelectedHole={setSelectedHole} getSkin={getSkin} formatToPar={formatToPar} showToast={showToast} scoreInput={scoreInput} setScoreInput={setScoreInput} noteInput={noteInput} setNoteInput={setNoteInput} competitions={competitions} setCompetitions={setCompetitions} />}
             {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} />}
             {adminTab==="skins"        && <SkinsView {...skinsProps} />}
             {adminTab==="competitions" && <CompetitionsView {...compProps} />}
+            {adminTab==="notes"         && <NotesView {...notesProps} />}
             {adminTab==="messages"     && <MessageBoard {...msgProps} />}
           </div>
         </div>
@@ -504,11 +520,12 @@ function JVIApp() {
       {/* Viewer */}
       {view==="viewer" && (
         <div style={{marginTop:20}}>
-          <TabBar tabs={["leaderboard","skins","competitions","messages"]} />
+          <TabBar tabs={["leaderboard","skins","competitions","notes","messages"]} />
           <div style={{maxWidth:900,margin:"0 auto",padding:"16px 12px 80px"}}>
             {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} />}
             {adminTab==="skins"        && <SkinsView {...skinsProps} />}
             {adminTab==="competitions" && <CompetitionsView {...compProps} />}
+            {adminTab==="notes"         && <NotesView {...notesProps} />}
             {adminTab==="messages"     && <MessageBoard {...msgProps} />}
           </div>
         </div>
@@ -545,6 +562,16 @@ function JVIApp() {
             savedNote={notes[`${myTeam.id}_${selectedHole}`]||""}
             skin={getSkin(selectedHole)}
             formatToPar={formatToPar}
+            competition={COMPETITIONS[selectedHole]}
+            allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
+            onCompSave={(playerName) => {
+              const key = String(selectedHole);
+              setCompetitions(prev => {
+                const history = safe.arr((prev||{})[key]);
+                return {...(prev||{}), [key]: [...history, {name:playerName, ts:Date.now()}]};
+              });
+              showToast(`${playerName} is the new leader!`);
+            }}
             onSave={(scoreVal, noteVal) => {
               const key=`${myTeam.id}_${selectedHole}`;
               if(scoreVal!==null) setScores(prev=>({...(prev||{}),[key]:scoreVal}));
@@ -558,11 +585,12 @@ function JVIApp() {
           />
 
           <div style={{marginTop:8}}>
-            <TabBar tabs={["leaderboard","skins","competitions","messages"]} />
+            <TabBar tabs={["leaderboard","skins","competitions","notes","messages"]} />
             <div style={{paddingTop:16}}>
               {adminTab==="leaderboard"  && <LeaderboardView {...lbProps} highlightTeamId={myTeam.id} />}
               {adminTab==="skins"        && <SkinsView {...skinsProps} />}
               {adminTab==="competitions" && <CompetitionsView {...compProps} />}
+            {adminTab==="notes"         && <NotesView {...notesProps} />}
               {adminTab==="messages"     && <MessageBoard {...msgProps} />}
             </div>
           </div>
@@ -573,17 +601,33 @@ function JVIApp() {
 }
 
 // ── Scoring Card ──────────────────────────────────────────────────────────────
-function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatToPar, onSave }) {
-  const [scoreVal, setScoreVal] = useState(saved ? String(saved) : "");
-  const [noteVal,  setNoteVal]  = useState(savedNote);
-  const [dirty,    setDirty]    = useState(false);
+function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatToPar, onSave, competition, onCompSave, allPlayerNames }) {
+  const [scoreVal,    setScoreVal]    = useState(saved ? String(saved) : "");
+  const [noteVal,     setNoteVal]     = useState(savedNote);
+  const [dirty,       setDirty]       = useState(false);
+  const [compAnswer,  setCompAnswer]  = useState(null); // null | 'yes' | 'no'
+  const [compName,    setCompName]    = useState("");
+  const [compError,   setCompError]   = useState("");
 
   // Reset when hole changes
   React.useEffect(() => {
     setScoreVal(saved ? String(saved) : "");
     setNoteVal(savedNote);
     setDirty(false);
+    setCompAnswer(null);
+    setCompName("");
+    setCompError("");
   }, [holeNum, saved, savedNote]);
+
+  const handleCompSave = () => {
+    if (!compName.trim()) { setCompError("Please enter a player name."); return; }
+    const names = (allPlayerNames||[]);
+    if (!names.includes(compName.trim().toLowerCase())) { setCompError("Name not found. Must be a registered player or captain."); return; }
+    onCompSave(compName.trim());
+    setCompAnswer(null);
+    setCompName("");
+    setCompError("");
+  };
 
   const scoreChanged = scoreVal !== "" && parseInt(scoreVal) !== saved;
   const noteChanged  = noteVal !== savedNote;
@@ -632,9 +676,38 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
         </div>
       </div>
 
+      {/* Competition question for special holes */}
+      {competition && (
+        <div style={{marginBottom:18,background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.3)",borderRadius:14,padding:"14px 16px"}}>
+          <div style={{fontFamily:T.font,fontSize:13,fontWeight:700,color:"#5C3A00",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏆 {competition.label}</div>
+          <div style={{fontFamily:T.font,fontSize:15,color:"#000",marginBottom:12,fontWeight:500}}>{competition.question}</div>
+          <div style={{display:"flex",gap:10,marginBottom: compAnswer==="yes" ? 12 : 0}}>
+            <button onClick={()=>setCompAnswer("yes")}
+              style={{flex:1,padding:"10px",borderRadius:10,border:`2px solid ${compAnswer==="yes"?"#1C3D2A":"rgba(118,118,128,0.2)"}`,background:compAnswer==="yes"?"#1C3D2A":"transparent",color:compAnswer==="yes"?"#fff":"#000",fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>
+              Yes
+            </button>
+            <button onClick={()=>{setCompAnswer("no");setCompName("");setCompError("");}}
+              style={{flex:1,padding:"10px",borderRadius:10,border:`2px solid ${compAnswer==="no"?"#FF3B30":"rgba(118,118,128,0.2)"}`,background:compAnswer==="no"?"rgba(255,59,48,0.08)":"transparent",color:compAnswer==="no"?"#FF3B30":"#000",fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>
+              No
+            </button>
+          </div>
+          {compAnswer==="yes" && (
+            <div>
+              <div style={{fontFamily:T.font,fontSize:13,color:"rgba(60,60,67,0.6)",marginBottom:6,fontWeight:600}}>New leader's name</div>
+              <input value={compName} onChange={e=>{setCompName(e.target.value);setCompError("");}}
+                placeholder="Enter player name"
+                style={{width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${compError?"#FF3B30":"rgba(118,118,128,0.2)"}`,background:"#fff",fontFamily:T.font,fontSize:16,color:"#000",outline:"none",marginBottom:8}} />
+              {compError && <div style={{fontFamily:T.font,fontSize:13,color:"#FF3B30",marginBottom:8}}>{compError}</div>}
+              <button className="btn-sm" onClick={handleCompSave}>Save leader</button>
+            </div>
+          )}
+          {compAnswer==="no" && <div style={{fontFamily:T.font,fontSize:14,color:"rgba(60,60,67,0.6)"}}>Got it — no change recorded.</div>}
+        </div>
+      )}
+
       {/* Note */}
       <div style={{marginBottom:18}}>
-        <div className="section-label">Notes (optional)</div>
+        <div className="section-label">Optional</div>
         <textarea value={noteVal} rows={2}
           onChange={e=>{setNoteVal(e.target.value);setDirty(true);}}
           placeholder={saved ? "Closest to pin, longest drive, etc." : "Enter a score first"}
@@ -746,7 +819,19 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
       {(teams||[]).length===0
         ? <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"32px 0"}}>No teams yet. Add your first team above.</div>
         : <div style={{display:"grid",gap:10}}>
-            {(teams||[]).map(team=>(
+            {/* Competition question for special holes */}
+        {COMPETITIONS[selectedHole] && (
+          <CompetitionBlock
+            holeNum={selectedHole}
+            competition={COMPETITIONS[selectedHole]}
+            competitions={competitions}
+            setCompetitions={setCompetitions}
+            allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
+            showToast={showToast}
+          />
+        )}
+
+        {(teams||[]).map(team=>(
               <div className="glass" key={team.id} style={{borderRadius:16,padding:"16px 18px"}}>
                 <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10}}>
                   <div>
@@ -783,7 +868,7 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
 }
 
 // ── Admin Scoring Tab ─────────────────────────────────────────────────────────
-function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHole, setSelectedHole, getSkin, formatToPar, showToast, scoreInput, setScoreInput, noteInput, setNoteInput }) {
+function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHole, setSelectedHole, getSkin, formatToPar, showToast, scoreInput, setScoreInput, noteInput, setNoteInput, competitions, setCompetitions }) {
   const h = HOLES[selectedHole-1];
   const skin = getSkin(selectedHole);
   const inp = { width:"100%", padding:"12px 14px", borderRadius:12, border:"1px solid rgba(118,118,128,0.2)", background:"rgba(118,118,128,0.06)", fontFamily:T.font, fontSize:15, color:"#000", outline:"none" };
@@ -810,6 +895,18 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
       </div>
       <div style={{display:"grid",gap:12}}>
         {(teams||[]).length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"24px 0"}}>Add teams first.</div>}
+        {/* Competition question for special holes */}
+        {COMPETITIONS[selectedHole] && (
+          <CompetitionBlock
+            holeNum={selectedHole}
+            competition={COMPETITIONS[selectedHole]}
+            competitions={competitions}
+            setCompetitions={setCompetitions}
+            allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
+            showToast={showToast}
+          />
+        )}
+
         {(teams||[]).map(team=>(
           <AdminTeamScoreCard
             key={team.id}
@@ -1123,15 +1220,124 @@ function SkinsView({ teams, HOLES, getSkin, formatToPar }) {
   );
 }
 
-// ── Competitions ──────────────────────────────────────────────────────────────
-function CompetitionsView({ teams, notes, HOLES }) {
-  const holesWithNotes = HOLES.filter(h=>(teams||[]).some(t=>notes[`${t.id}_${h.hole}`]));
+// ── Competition Block (inside scoring) ────────────────────────────────────────
+function CompetitionBlock({ holeNum, competition, competitions, setCompetitions, allPlayerNames, showToast }) {
+  const [answer,  setAnswer]  = useState(null);
+  const [name,    setName]    = useState("");
+  const [error,   setError]   = useState("");
+  const key = String(holeNum);
+  const history = safe.arr((competitions||{})[key]);
+  const current = history.length > 0 ? history[history.length-1].name : null;
+
+  const handleSave = () => {
+    if (!name.trim()) { setError("Please enter a player name."); return; }
+    if (!allPlayerNames.includes(name.trim().toLowerCase())) { setError("Name not found. Must be a registered player or captain."); return; }
+    setCompetitions(prev => {
+      const hist = safe.arr((prev||{})[key]);
+      return {...(prev||{}), [key]: [...hist, {name:name.trim(), ts:Date.now()}]};
+    });
+    showToast(`${name.trim()} is the new leader!`);
+    setAnswer(null); setName(""); setError("");
+  };
+
+  return (
+    <div style={{marginBottom:16,background:"rgba(255,215,0,0.1)",border:"1.5px solid rgba(255,215,0,0.4)",borderRadius:14,padding:"14px 16px"}}>
+      <div style={{fontFamily:T.font,fontSize:12,fontWeight:700,color:"#5C3A00",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏆 {competition.label}</div>
+      {current && <div style={{fontFamily:T.font,fontSize:14,color:"#5C3A00",marginBottom:10}}>Current leader: <strong>{current}</strong></div>}
+      <div style={{fontFamily:T.font,fontSize:15,color:"#000",marginBottom:10,fontWeight:500}}>{competition.question}</div>
+      <div style={{display:"flex",gap:10,marginBottom:answer==="yes"?12:0}}>
+        <button onClick={()=>setAnswer("yes")} style={{flex:1,padding:"10px",borderRadius:10,border:`2px solid ${answer==="yes"?T.green:"rgba(118,118,128,0.2)"}`,background:answer==="yes"?T.green:"transparent",color:answer==="yes"?"#fff":"#000",fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>Yes</button>
+        <button onClick={()=>{setAnswer("no");setName("");setError("");}} style={{flex:1,padding:"10px",borderRadius:10,border:`2px solid ${answer==="no"?"#FF3B30":"rgba(118,118,128,0.2)"}`,background:answer==="no"?"rgba(255,59,48,0.08)":"transparent",color:answer==="no"?"#FF3B30":"#000",fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>No</button>
+      </div>
+      {answer==="yes" && (
+        <div>
+          <input value={name} onChange={e=>{setName(e.target.value);setError("");}}
+            placeholder="Enter new leader's name"
+            style={{width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${error?"#FF3B30":"rgba(118,118,128,0.2)"}`,background:"#fff",fontFamily:T.font,fontSize:16,color:"#000",outline:"none",marginBottom:8}} />
+          {error && <div style={{fontFamily:T.font,fontSize:13,color:"#FF3B30",marginBottom:8}}>{error}</div>}
+          <button className="btn-sm" onClick={handleSave}>Save leader</button>
+        </div>
+      )}
+      {answer==="no" && <div style={{fontFamily:T.font,fontSize:13,color:"rgba(60,60,67,0.6)"}}>No change recorded.</div>}
+    </div>
+  );
+}
+
+// ── Competitions View ─────────────────────────────────────────────────────────
+function CompetitionsView({ competitions, setCompetitions, teams }) {
+  const compHoles = Object.keys(COMPETITIONS).map(Number).sort((a,b)=>a-b);
+  const hasAny = compHoles.some(h => safe.arr((competitions||{})[String(h)]).length > 0);
+
   return (
     <div>
       <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#fff",marginBottom:4}}>Competitions</div>
-      <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:20}}>Special hole competitions — closest to pin, longest drive, and more.</div>
+      <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:20}}>Live leader history for each special hole competition.</div>
+      {!hasAny && (
+        <div style={{textAlign:"center",color:"rgba(255,255,255,0.6)",fontFamily:T.font,fontSize:15,padding:"40px 0"}}>No competition leaders recorded yet.</div>
+      )}
+      <div style={{display:"grid",gap:14}}>
+        {compHoles.map(hNum => {
+          const comp = COMPETITIONS[hNum];
+          const hole = HOLES[hNum-1];
+          const history = safe.arr((competitions||{})[String(hNum)]);
+          return (
+            <div key={hNum} style={{borderRadius:16,overflow:"hidden",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+              {/* Header */}
+              <div style={{background:"linear-gradient(135deg,#1C3D2A,#2D5A3D)",padding:"12px 18px",display:"flex",alignItems:"center",gap:14}}>
+                <div style={{width:40,height:40,borderRadius:10,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font,fontSize:18,fontWeight:800,color:"#fff"}}>{hNum}</div>
+                <div>
+                  <div style={{fontFamily:T.font,fontSize:15,fontWeight:700,color:"#fff"}}>Hole {hNum} — {comp.label}</div>
+                  <div style={{fontFamily:T.font,fontSize:12,color:"rgba(255,255,255,0.65)"}}>Par {hole.par} · {hole.yards} yds · Hdcp {hole.handicap}</div>
+                </div>
+              </div>
+              {/* Leader history */}
+              <div style={{padding:"14px 18px"}}>
+                {history.length === 0 ? (
+                  <div style={{fontFamily:T.font,fontSize:14,color:"rgba(60,60,67,0.5)",fontStyle:"italic"}}>No leader recorded yet</div>
+                ) : (
+                  <div>
+                    <div style={{fontFamily:T.font,fontSize:11,fontWeight:700,color:T.green,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Leader history</div>
+                    <div style={{display:"flex",alignItems:"center",flexWrap:"wrap",gap:6}}>
+                      {history.map((entry, i) => {
+                        const isCurrent = i === history.length - 1;
+                        return (
+                          <React.Fragment key={entry.ts}>
+                            <span style={{
+                              fontFamily:T.font, fontSize:15, fontWeight: isCurrent ? 800 : 400,
+                              color: isCurrent ? T.green : "rgba(60,60,67,0.4)",
+                              textDecoration: isCurrent ? "none" : "line-through",
+                              padding: isCurrent ? "4px 12px" : "2px 6px",
+                              background: isCurrent ? "rgba(52,199,89,0.12)" : "transparent",
+                              borderRadius: isCurrent ? 20 : 0,
+                              border: isCurrent ? `1.5px solid rgba(52,199,89,0.3)` : "none",
+                            }}>
+                              {isCurrent ? "👑 " : ""}{entry.name}
+                            </span>
+                            {i < history.length - 1 && <span style={{color:"rgba(60,60,67,0.3)",fontSize:14}}>→</span>}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Notes View ────────────────────────────────────────────────────────────────
+function NotesView({ teams, notes, HOLES }) {
+  const holesWithNotes = HOLES.filter(h=>(teams||[]).some(t=>notes[`${t.id}_${h.hole}`]));
+  return (
+    <div>
+      <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#fff",marginBottom:4}}>Notes</div>
+      <div style={{fontFamily:T.font,fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:20}}>Hole notes entered by captains during the round.</div>
       {holesWithNotes.length===0 && (
-        <div style={{textAlign:"center",color:"rgba(255,255,255,0.6)",fontFamily:T.font,fontSize:15,padding:"40px 0"}}>No competition notes yet. Captains can add notes when entering scores.</div>
+        <div style={{textAlign:"center",color:"rgba(255,255,255,0.6)",fontFamily:T.font,fontSize:15,padding:"40px 0"}}>No notes yet.</div>
       )}
       <div style={{display:"grid",gap:14}}>
         {holesWithNotes.map(h=>(
@@ -1140,7 +1346,7 @@ function CompetitionsView({ teams, notes, HOLES }) {
               <div style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:T.font,fontSize:16,fontWeight:800,color:"#fff"}}>{h.hole}</div>
               <div>
                 <div style={{fontFamily:T.font,fontSize:15,fontWeight:700,color:"#fff"}}>Hole {h.hole}</div>
-                <div style={{fontFamily:T.font,fontSize:12,color:"rgba(255,255,255,0.65)"}}>Par {h.par} · {h.yards} yds · Hdcp {h.handicap}</div>
+                <div style={{fontFamily:T.font,fontSize:12,color:"rgba(255,255,255,0.65)"}}>Par {h.par} · {h.yards} yds</div>
               </div>
             </div>
             {(teams||[]).filter(t=>notes[`${t.id}_${h.hole}`]).map((team,i,arr)=>(
