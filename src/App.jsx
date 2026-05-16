@@ -676,9 +676,9 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
         </div>
       </div>
 
-      {/* Competition question for special holes */}
+      {/* Competition question for special holes — shown prominently at top */}
       {competition && (
-        <div style={{marginBottom:18,background:"rgba(255,215,0,0.08)",border:"1px solid rgba(255,215,0,0.3)",borderRadius:14,padding:"14px 16px"}}>
+        <div style={{marginBottom:18,background:"rgba(255,215,0,0.10)",border:"2px solid rgba(255,215,0,0.5)",borderRadius:14,padding:"14px 16px"}}>
           <div style={{fontFamily:T.font,fontSize:13,fontWeight:700,color:"#5C3A00",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏆 {competition.label}</div>
           <div style={{fontFamily:T.font,fontSize:15,color:"#000",marginBottom:12,fontWeight:500}}>{competition.question}</div>
           <div style={{display:"flex",gap:10,marginBottom: compAnswer==="yes" ? 12 : 0}}>
@@ -893,20 +893,20 @@ function AdminScoringTab({ teams, scores, notes, setScores, setNotes, selectedHo
           </div>
         )}
       </div>
+      {/* Competition question for special holes — above team cards */}
+      {COMPETITIONS[selectedHole] && (
+        <CompetitionBlock
+          holeNum={selectedHole}
+          competition={COMPETITIONS[selectedHole]}
+          competitions={competitions}
+          setCompetitions={setCompetitions}
+          allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
+          showToast={showToast}
+        />
+      )}
+
       <div style={{display:"grid",gap:12}}>
         {(teams||[]).length===0 && <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"24px 0"}}>Add teams first.</div>}
-        {/* Competition question for special holes */}
-        {COMPETITIONS[selectedHole] && (
-          <CompetitionBlock
-            holeNum={selectedHole}
-            competition={COMPETITIONS[selectedHole]}
-            competitions={competitions}
-            setCompetitions={setCompetitions}
-            allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
-            showToast={showToast}
-          />
-        )}
-
         {(teams||[]).map(team=>(
           <AdminTeamScoreCard
             key={team.id}
