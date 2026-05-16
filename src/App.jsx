@@ -563,7 +563,8 @@ function JVIApp() {
             skin={getSkin(selectedHole)}
             formatToPar={formatToPar}
             competition={COMPETITIONS[selectedHole]}
-            allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
+            allPlayerNames={(myTeam?.players||[]).map(p=>p.toLowerCase())}
+            teamOnly={true}
             onCompSave={(playerName) => {
               const key = String(selectedHole);
               setCompetitions(prev => {
@@ -601,7 +602,7 @@ function JVIApp() {
 }
 
 // ── Scoring Card ──────────────────────────────────────────────────────────────
-function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatToPar, onSave, competition, onCompSave, allPlayerNames }) {
+function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatToPar, onSave, competition, onCompSave, allPlayerNames, teamOnly }) {
   const [scoreVal,    setScoreVal]    = useState(saved ? String(saved) : "");
   const [noteVal,     setNoteVal]     = useState(savedNote);
   const [dirty,       setDirty]       = useState(false);
@@ -622,7 +623,7 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
   const handleCompSave = () => {
     if (!compName.trim()) { setCompError("Please enter a player name."); return; }
     const names = (allPlayerNames||[]);
-    if (!names.includes(compName.trim().toLowerCase())) { setCompError("Name not found. Must be a registered player or captain."); return; }
+    if (!names.includes(compName.trim().toLowerCase())) { setCompError(teamOnly ? "Must be a player on your team." : "Name not found. Must be a registered player or captain."); return; }
     onCompSave(compName.trim());
     setCompAnswer(null);
     setCompName("");
@@ -678,7 +679,7 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
 
       {/* Competition question for special holes — shown prominently at top */}
       {competition && (
-        <div style={{marginBottom:18,background:"rgba(255,215,0,0.10)",border:"2px solid rgba(255,215,0,0.5)",borderRadius:14,padding:"14px 16px"}}>
+        <div style={{marginBottom:18,background:"#fff",border:"2px solid rgba(255,215,0,0.6)",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 8px rgba(255,165,0,0.12)"}}>
           <div style={{fontFamily:T.font,fontSize:13,fontWeight:700,color:"#5C3A00",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏆 {competition.label}</div>
           <div style={{fontFamily:T.font,fontSize:15,color:"#000",marginBottom:12,fontWeight:500}}>{competition.question}</div>
           <div style={{display:"flex",gap:10,marginBottom: compAnswer==="yes" ? 12 : 0}}>
@@ -693,9 +694,9 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
           </div>
           {compAnswer==="yes" && (
             <div>
-              <div style={{fontFamily:T.font,fontSize:13,color:"rgba(60,60,67,0.6)",marginBottom:6,fontWeight:600}}>New leader's name</div>
+              <div style={{fontFamily:T.font,fontSize:13,color:"rgba(60,60,67,0.6)",marginBottom:6,fontWeight:600}}>{teamOnly ? "Your name or a teammate" : "New leader's name"}</div>
               <input value={compName} onChange={e=>{setCompName(e.target.value);setCompError("");}}
-                placeholder="Enter player name"
+                placeholder={teamOnly ? "Enter your name or a teammate" : "Enter player name"}
                 style={{width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${compError?"#FF3B30":"rgba(118,118,128,0.2)"}`,background:"#fff",fontFamily:T.font,fontSize:16,color:"#000",outline:"none",marginBottom:8}} />
               {compError && <div style={{fontFamily:T.font,fontSize:13,color:"#FF3B30",marginBottom:8}}>{compError}</div>}
               <button className="btn-sm" onClick={handleCompSave}>Save leader</button>
@@ -1229,10 +1230,10 @@ function CompetitionBlock({ holeNum, competition, competitions, setCompetitions,
   };
 
   return (
-    <div style={{marginBottom:16,background:"rgba(255,215,0,0.1)",border:"1.5px solid rgba(255,215,0,0.4)",borderRadius:14,padding:"14px 16px"}}>
-      <div style={{fontFamily:T.font,fontSize:12,fontWeight:700,color:"#5C3A00",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏆 {competition.label}</div>
-      {current && <div style={{fontFamily:T.font,fontSize:14,color:"#5C3A00",marginBottom:10}}>Current leader: <strong>{current}</strong></div>}
-      <div style={{fontFamily:T.font,fontSize:15,color:"#000",marginBottom:10,fontWeight:500}}>{competition.question}</div>
+    <div style={{marginBottom:16,background:"#fff",border:"2px solid rgba(255,215,0,0.6)",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 8px rgba(255,165,0,0.15)"}}>
+      <div style={{fontFamily:T.font,fontSize:12,fontWeight:700,color:"#5C3A00",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.06em"}}>🏆 {competition.label}</div>
+      {current && <div style={{fontFamily:T.font,fontSize:14,color:T.green,marginBottom:8,fontWeight:600}}>Current leader: <strong>{current}</strong></div>}
+      <div style={{fontFamily:T.font,fontSize:15,color:"#000",marginBottom:12,fontWeight:500}}>{competition.question}</div>
       <div style={{display:"flex",gap:10,marginBottom:answer==="yes"?12:0}}>
         <button onClick={()=>setAnswer("yes")} style={{flex:1,padding:"10px",borderRadius:10,border:`2px solid ${answer==="yes"?T.green:"rgba(118,118,128,0.2)"}`,background:answer==="yes"?T.green:"transparent",color:answer==="yes"?"#fff":"#000",fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>Yes</button>
         <button onClick={()=>{setAnswer("no");setName("");setError("");}} style={{flex:1,padding:"10px",borderRadius:10,border:`2px solid ${answer==="no"?"#FF3B30":"rgba(118,118,128,0.2)"}`,background:answer==="no"?"rgba(255,59,48,0.08)":"transparent",color:answer==="no"?"#FF3B30":"#000",fontFamily:T.font,fontSize:15,fontWeight:600,cursor:"pointer"}}>No</button>
@@ -1246,7 +1247,7 @@ function CompetitionBlock({ holeNum, competition, competitions, setCompetitions,
           <button className="btn-sm" onClick={handleSave}>Save leader</button>
         </div>
       )}
-      {answer==="no" && <div style={{fontFamily:T.font,fontSize:13,color:"rgba(60,60,67,0.6)"}}>No change recorded.</div>}
+      {answer==="no" && <div style={{fontFamily:T.font,fontSize:14,color:T.label,marginTop:4}}>No change recorded.</div>}
     </div>
   );
 }
