@@ -819,18 +819,6 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
       {(teams||[]).length===0
         ? <div style={{textAlign:"center",color:"rgba(255,255,255,0.8)",fontFamily:T.font,fontSize:15,padding:"32px 0"}}>No teams yet. Add your first team above.</div>
         : <div style={{display:"grid",gap:10}}>
-            {/* Competition question for special holes */}
-        {COMPETITIONS[selectedHole] && (
-          <CompetitionBlock
-            holeNum={selectedHole}
-            competition={COMPETITIONS[selectedHole]}
-            competitions={competitions}
-            setCompetitions={setCompetitions}
-            allPlayerNames={(teams||[]).flatMap(t=>(t.players||[]).map(p=>p.toLowerCase()))}
-            showToast={showToast}
-          />
-        )}
-
         {(teams||[]).map(team=>(
               <div className="glass" key={team.id} style={{borderRadius:16,padding:"16px 18px"}}>
                 <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10}}>
