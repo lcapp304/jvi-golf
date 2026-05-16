@@ -711,7 +711,7 @@ function ScoringCard({ hole:h, holeNum, teamId, saved, savedNote, skin, formatTo
         <div className="section-label">Optional</div>
         <textarea value={noteVal} rows={2}
           onChange={e=>{setNoteVal(e.target.value);setDirty(true);}}
-          placeholder={saved ? "Closest to pin, longest drive, etc." : "Enter a score first"}
+          placeholder={saved ? "Add a note for this hole..." : "Enter a score first"}
           disabled={!saved && !scoreVal}
           style={{width:"100%",padding:"12px 14px",borderRadius:12,
             border: dirty && noteVal!==savedNote ? "1.5px solid #FF9500" : "1px solid rgba(118,118,128,0.2)",
@@ -970,7 +970,7 @@ function AdminTeamScoreCard({ team, holeNum, saved, savedNote, onSave }) {
       <div style={{marginBottom:12}}>
         <div className="section-label">Notes</div>
         <input value={noteVal} onChange={e=>{setNoteVal(e.target.value);setDirty(true);}}
-          placeholder={saved ? "Closest to pin, longest drive, etc." : "Enter a score first"}
+          placeholder={saved ? "Add a note for this hole..." : "Enter a score first"}
           disabled={!saved && !scoreVal}
           style={{...inp,
             opacity:(saved||scoreVal)?1:0.5,
@@ -1320,7 +1320,8 @@ function CompetitionsView({ competitions, setCompetitions, teams }) {
 
 // ── Notes View ────────────────────────────────────────────────────────────────
 function NotesView({ teams, notes, HOLES }) {
-  const holesWithNotes = HOLES.filter(h=>(teams||[]).some(t=>notes[`${t.id}_${h.hole}`]));
+  // Exclude competition holes — those are tracked in the Competitions tab
+  const holesWithNotes = HOLES.filter(h=>!COMPETITIONS[h.hole] && (teams||[]).some(t=>notes[`${t.id}_${h.hole}`]));
   return (
     <div>
       <div style={{fontFamily:T.font,fontSize:22,fontWeight:800,letterSpacing:"-0.4px",color:"#fff",marginBottom:4}}>Notes</div>
