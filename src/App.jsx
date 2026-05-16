@@ -30,15 +30,15 @@ const COURSE = {
   website: "https://www.grandviewgolfnorth.com",
   tees: "White", rating: "69.5", slope: "129",
   holes: [
-    { hole: 1, par:4, yards:362, handicap: 7 }, { hole: 2, par:5, yards:483, handicap: 5 },
-    { hole: 3, par:3, yards:137, handicap: 9 }, { hole: 4, par:4, yards:366, handicap: 1 },
-    { hole: 5, par:4, yards:326, handicap:15 }, { hole: 6, par:4, yards:337, handicap:17 },
-    { hole: 7, par:5, yards:552, handicap: 3 }, { hole: 8, par:3, yards:172, handicap: 5 },
-    { hole: 9, par:4, yards:358, handicap:13 }, { hole:10, par:4, yards:327, handicap:14 },
-    { hole:11, par:5, yards:506, handicap:10 }, { hole:12, par:4, yards:329, handicap:12 },
-    { hole:13, par:4, yards:267, handicap:18 }, { hole:14, par:3, yards:202, handicap: 6 },
-    { hole:15, par:5, yards:556, handicap: 4 }, { hole:16, par:3, yards:147, handicap:16 },
-    { hole:17, par:4, yards:380, handicap: 2 }, { hole:18, par:4, yards:374, handicap: 8 },
+    { hole: 1, par:4, yards:327, handicap:14 }, { hole: 2, par:5, yards:506, handicap:10 },
+    { hole: 3, par:4, yards:329, handicap:12 }, { hole: 4, par:4, yards:267, handicap:18 },
+    { hole: 5, par:3, yards:202, handicap: 6 }, { hole: 6, par:5, yards:556, handicap: 4 },
+    { hole: 7, par:3, yards:147, handicap:16 }, { hole: 8, par:4, yards:380, handicap: 2 },
+    { hole: 9, par:4, yards:374, handicap: 8 }, { hole:10, par:4, yards:362, handicap: 7 },
+    { hole:11, par:5, yards:483, handicap: 5 }, { hole:12, par:3, yards:137, handicap: 9 },
+    { hole:13, par:4, yards:366, handicap: 1 }, { hole:14, par:4, yards:326, handicap:15 },
+    { hole:15, par:4, yards:337, handicap:17 }, { hole:16, par:5, yards:552, handicap: 3 },
+    { hole:17, par:3, yards:172, handicap: 5 }, { hole:18, par:4, yards:358, handicap:13 },
   ],
 };
 
@@ -52,12 +52,12 @@ const backYds  = HOLES.slice(9,18).reduce((a,h)=>a+h.yards,0);
 
 // ── Competition Holes ─────────────────────────────────────────────────────────
 const COMPETITIONS = {
-  2:  { label: "Long Drive — Seniors (55+)",  question: "Did the leader for Long Drive (Seniors 55+) change?" },
-  7:  { label: "Closest to the Pin",          question: "Did the leader for Closest to the Pin change?" },
-  9:  { label: "Closest to the Pin (Sand)",   question: "Did the leader for Closest to the Pin out of the Sand change?" },
-  12: { label: "Closest to the Pin",          question: "Did the leader for Closest to the Pin change?" },
-  13: { label: "Longest Drive",               question: "Did the leader for Longest Drive change?" },
-  16: { label: "Closest to the Pin (3rd Shot)", question: "Did the leader for Closest to the Pin on 3rd Shot change?" },
+  2:  { label: "Long Drive — Seniors (55+)",     question: "Did the leader for Long Drive (Seniors 55+) change?" },
+  7:  { label: "Closest to the Pin",             question: "Did the leader for Closest to the Pin change?" },
+  9:  { label: "Closest to the Pin (Sand)",      question: "Did the leader for Closest to the Pin out of the Sand change?" },
+  12: { label: "Closest to the Pin",             question: "Did the leader for Closest to the Pin change?" },
+  13: { label: "Longest Drive",                  question: "Did the leader for Longest Drive change?" },
+  16: { label: "Closest to the Pin (3rd Shot)",  question: "Did the leader for Closest to the Pin on 3rd Shot change?" },
 };
 
 // ── Design Tokens ─────────────────────────────────────────────────────────────
