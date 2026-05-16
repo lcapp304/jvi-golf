@@ -791,7 +791,7 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
   return (
     <div>
       {editTeam && (
-        <div className="glass" style={{borderRadius:18,padding:"20px",marginBottom:20}}>
+        <div id="edit-team-form" className="glass" style={{borderRadius:18,padding:"20px",marginBottom:20}}>
           <div style={{fontFamily:T.font,fontSize:17,fontWeight:700,marginBottom:14}}>Edit team</div>
           <input value={editTeam.name} onChange={e=>setEditTeam(p=>({...p,name:e.target.value}))} placeholder="Team name" style={{...inp,marginBottom:12}} />
           {(editTeam.players||[]).map((p,i)=>(
@@ -828,7 +828,7 @@ function TeamsTab({ teams, editTeam, setEditTeam, saveEditTeam, newTeamName, set
                     <div style={{display:"inline-block",background:"rgba(52,199,89,0.12)",borderRadius:6,padding:"3px 9px",fontFamily:T.font,fontSize:12,fontWeight:600,color:T.green}}>Captain: {team.players[0]}</div>
                   </div>
                   <div style={{display:"flex",gap:8}}>
-                    <button className="btn-ghost" style={{padding:"6px 14px",fontSize:13}} onClick={()=>{const p=[...team.players];while(p.length<4)p.push("");setEditTeam({...team,players:p});}}>Edit</button>
+                    <button className="btn-ghost" style={{padding:"6px 14px",fontSize:13}} onClick={()=>{const p=[...team.players];while(p.length<4)p.push("");setEditTeam({...team,players:p});setTimeout(()=>document.getElementById("edit-team-form")?.scrollIntoView({behavior:"smooth",block:"start"}),50);}}>Edit</button>
                     <button className="btn-danger" onClick={()=>setConfirmRemove(team.id)}>Remove</button>
                   </div>
                 </div>
